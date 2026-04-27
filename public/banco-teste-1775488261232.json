@@ -1,0 +1,260 @@
+{
+  "clinicas": [],
+  "exames": [
+    {
+      "nome_parametro": "RAIDIOGRAFIA DE ABDOMEN AGUDO - MINIMO DE 3 INCIDENCIAS",
+      "nome_real": "RAIDIOGRAFIA DE ABDOMEN AGUDO - MINIMO DE 3 INCIDENCIAS",
+      "clinicas": [
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160390,
+          "preco": 250
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE COLUNA LOMBO-SACRA COM OBLIQUAS",
+      "nome_real": "RADIOGRAFIA DE COLUNA LOMBO-SACRA COM OBLIQUAS",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 5,
+          "preco": 170
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160412,
+          "preco": 170
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47182,
+          "preco": 100
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE COLUNA LOMBO-SACRA",
+      "nome_real": "RADIOGRAFIA DE COLUNA LOMBO-SACRA",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 13503,
+          "preco": 150
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160413,
+          "preco": 150
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47181,
+          "preco": 100
+        },
+        {
+          "clinica_id": "341",
+          "id_exame_clinica": 160470,
+          "preco": 100
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE COLUNA TORACO-LOMBAR",
+      "nome_real": "RADIOGRAFIA DE COLUNA TORACO-LOMBAR",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 14039,
+          "preco": 150
+        },
+        {
+          "clinica_id": "49",
+          "id_exame_clinica": 165814,
+          "preco": 135
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47183,
+          "preco": 100
+        },
+        {
+          "clinica_id": "341",
+          "id_exame_clinica": 161410,
+          "preco": 120
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE ARTICULACAO ESTERNO-CLAVICULAR",
+      "nome_real": "RADIOGRAFIA DE ARTICULACAO ESTERNO-CLAVICULAR",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 13497,
+          "preco": 150
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160393,
+          "preco": 150
+        },
+        {
+          "clinica_id": "41",
+          "id_exame_clinica": 63321,
+          "preco": 100
+        },
+        {
+          "clinica_id": "42",
+          "id_exame_clinica": 63410,
+          "preco": 100
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47168,
+          "preco": 100
+        },
+        {
+          "clinica_id": "341",
+          "id_exame_clinica": 160455,
+          "preco": 120
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE ARTICULACAO ESCAPULO-UMERAL - OMBRO D OU E",
+      "nome_real": "RADIOGRAFIA DE ARTICULACAO ESCAPULO-UMERAL - OMBRO D OU E",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 13489,
+          "preco": 150
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160397,
+          "preco": 150
+        },
+        {
+          "clinica_id": "41",
+          "id_exame_clinica": 63320,
+          "preco": 100
+        },
+        {
+          "clinica_id": "42",
+          "id_exame_clinica": 63409,
+          "preco": 100
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47167,
+          "preco": 100
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE COSTELAS POR HEMITORAX / PALETA",
+      "nome_real": "RADIOGRAFIA DE COSTELAS POR HEMITORAX / PALETA",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 13506,
+          "preco": 150
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160415,
+          "preco": 150
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47184,
+          "preco": 100
+        },
+        {
+          "clinica_id": "341",
+          "id_exame_clinica": 160472,
+          "preco": 120
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA PANORAMICA DE MEMBROS INFERIORES",
+      "nome_real": "RADIOGRAFIA PANORAMICA DE MEMBROS INFERIORES",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 11,
+          "preco": 350
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 161317,
+          "preco": 350
+        },
+        {
+          "clinica_id": "49",
+          "id_exame_clinica": 165073,
+          "preco": 312
+        },
+        {
+          "clinica_id": "100",
+          "id_exame_clinica": 150953,
+          "preco": 300
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47218,
+          "preco": 240
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE TORAX - PA E PERFIL",
+      "nome_real": "RADIOGRAFIA DE TORAX - PA E PERFIL",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 13526,
+          "preco": 150
+        },
+        {
+          "clinica_id": "119",
+          "id_exame_clinica": 160438,
+          "preco": 150
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47212,
+          "preco": 100
+        },
+        {
+          "clinica_id": "341",
+          "id_exame_clinica": 160501,
+          "preco": 120
+        }
+      ]
+    },
+    {
+      "nome_parametro": "RADIOGRAFIA DE TORAX - PA + LATERAL + OBLIQUA",
+      "nome_real": "RADIOGRAFIA DE TORAX - PA + LATERAL + OBLIQUA",
+      "clinicas": [
+        {
+          "clinica_id": "3",
+          "id_exame_clinica": 14,
+          "preco": 170
+        },
+        {
+          "clinica_id": "49",
+          "id_exame_clinica": 132917,
+          "preco": 145
+        },
+        {
+          "clinica_id": "215",
+          "id_exame_clinica": 47211,
+          "preco": 100
+        }
+      ]
+    }
+  ]
+}

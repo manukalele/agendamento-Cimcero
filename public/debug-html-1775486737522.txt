@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <meta name="keywords" content="consórcios de saúde, sistemas web, sus, saúde pública, saúde municipal" />
+    <meta name="description" content="Sics - Sistema para consórcios de saúde" />
+    <meta http-equiv="content-language" content="pt-br" />
+    <link rel="shortcut icon" href="/imgs/favicon.ico" />
+    <link rel="shortcut icon" href="/imgs/favicon.png" />
+    <meta name="robots" content="noindex">
+
+
+    <meta property="og:site_name" content="SICS - Pentágono Sistemas">
+    <meta property="og:title" content="SICS - Pentágono Sistemas" />
+    <meta property="og:description" content="Pentágono Sistemas - Sistema para consórcios de saúde" />
+    <meta property="og:image" itemprop="image" content="/imgs/sics.png">
+    <meta property="og:type" content="website" />      
+
+	<title>
+	Sics
+	</title>
+  
+	
+  <link rel='stylesheet' type='text/css' href='/public/css/p5.css?v=11.0.19&ck=7172c849beee64e810c592737efb17c7' />
+
+
+  <link rel='stylesheet' type='text/css' href='/public/css/fa.css?v=11.0.19&ck=7172c849beee64e810c592737efb17c7' />
+
+
+  <link rel='stylesheet' type='text/css' href='/public/css/login.css?v=11.0.19&ck=7172c849beee64e810c592737efb17c7' />
+
+
+  <script type='text/javascript' src='/public/js/apis/jquery.js'></script>
+
+
+  <script type='text/javascript' src='/public/js/apis/p5fw.Helpers.js'></script>
+
+
+  <script type='text/javascript' src='/public/js/apis/p5fw.js'></script>
+
+ 
+  
+</head>
+<script src='https://www.google.com/recaptcha/api.js'></script>
+<body style="background: url('/imgs/login.jpg') no-repeat center center fixed; background-size: cover;">
+<div class="login-header">
+    <div class="logo">
+        <img src="/imgs/logo_c.png" alt="" />
+    </div>
+    <div class="desc">Consórcio Público Intermunicipal de Rondônia</div>
+    <div class='info'>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ji Paraná - RO
+    </div>
+</div>
+<div class="login-back">
+    <div class='main-login auth-component-form'>
+
+    	<h2><span class='fa fa-lock'></span> Autenticação</h2>
+
+    	<div class='item-login'>
+         	<input type="text" class="form-control input-lg auth-component-login" placeholder="login" maxlength="45">
+        	<span class="fa fa-user form-control-feedback auth-component-login-icon"></span>
+        </div>
+
+        <div class='item-login'>
+         	<input type="password" class="form-control input-lg auth-component-passwd" placeholder='senha' maxlength="20">
+        	<span class="fa fa-asterisk form-control-feedback auth-component-passwd-icon"></span>
+        </div>
+
+        <div class="form-group">
+            <div class="g-recaptcha" data-sitekey="6LfvdqEUAAAAALpaxPu8J08HCNLeIEqbV4bISjOV"></div>
+        </div>
+
+        <div class='item-login'>
+        	<input type='checkbox' id='save' disabled="disabled" class='p5 auth-component-save'>
+        	<label for='save'>Salvar informações</label>
+        	<a href='javascript:;' class='right auth-component-forgot'><span class='fa fa-question'></span> Esqueci </a>
+        </div>
+
+         <div class='item-login'>
+         	<button class='btn btn-lg btn-success auth-component-btn' c='1' data-loading-text="<span class='fa fa-spin fa-refresh'></span> Aguarde..." id='btn-login'><span class='fa fa-chevron-right'></span> Login</button>
+         </div>
+
+    </div>
+
+    <div class='main-forgot auth-component-form'>
+
+        <h2><span class='fa fa-unlock-alt'></span> Recuperar senha</h2>
+        
+        <label>Preencha seu Login OU seu E-mail</label>
+
+        <div class='item-login'>
+            <input type="text" class="form-control input-lg auth-component-forgot-login" placeholder="login" maxlength="16">
+            <span class="fa fa-user form-control-feedback"></span>
+        </div>
+
+        <div class='item-login'>
+            <input type="text" class="form-control input-lg auth-component-forgot-email" placeholder="e-mail" maxlength="125">
+            <span class="fa fa-envelope form-control-feedback"></span>
+        </div>
+
+         <div class='item-login'>
+            <button class='btn btn-lg btn-primary auth-component-forgot-btn' data-loading-text="<span class='fa fa-spin fa-refresh'></span> Recuperando..." id='btn-forgot'><span class='fa fa-refresh'></span> Recuperar</button>
+         </div>
+
+         <a href='javascript:;' class='auth-component-forgot-back'><span class='fa fa-angle-double-left'></span> Voltar </a>
+         <a href='javascript:;' class='right auth-component-forgot-code'><span class='fa fa-unlock'></span> Código de Segurança</a>
+
+    </div>
+
+
+     <div class='main-forgot-code auth-component-form'>
+
+        <h2><span class='fa fa-unlock'></span> Redefinir</h2>
+        
+        <div class="auth-component-forgot-reset">
+
+            <div class='alert alert-warning'>
+                Utilize o código recebido em seu e-mail.
+            </div>
+
+            <div class='item-login'>
+                <input type="text" class="form-control input-lg auth-component-forgot-tokenemail" placeholder="Email">
+                <span class="fa fa-code form-control-feedback"></span>
+            </div>
+
+            <div class='item-login'>
+                <input type="text" class="form-control input-lg auth-component-forgot-token" style='text-transform: uppercase' placeholder="Código" maxlength="6">
+                <span class="fa fa-code form-control-feedback"></span>
+            </div>
+
+             <div class='item-login'>
+                <button class='btn btn-lg btn-primary auth-component-forgot-code-btn' data-loading-text="<span class='fa fa-spin fa-refresh'></span> Redefinindo..." id='btn-forgot-code'><span class='fa fa-check-square'></span> Redefinir senha</button>
+             </div>
+
+        </div>
+
+        <a href='javascript:;' class='auth-component-forgot-back'><span class='fa fa-angle-double-left'></span> Voltar </a>
+
+    </div>
+
+
+    <div class='main-changepasswd auth-component-form'>
+
+        <h2><span class='fa fa-lock'></span> Alterar senha</h2>
+        
+        <div class='item-login'>
+            <input type="password" class="form-control input-lg auth-component-newpasswd" placeholder="Nova Senha" maxlength="20" />
+        </div>
+        <div class='item-login'>
+            <input type="password" class="form-control input-lg auth-component-newpasswd2" placeholder="Confirme sua senha" maxlength="20" />
+        </div>
+
+        <a href='javascript:;' class='auth-component-changepasswd-back'><span class='fa fa-angle-double-left'></span> Voltar </a>
+
+        <a href='javascript:;' class='auth-component-changepasswd-showpass right'><span class='fa fa-unlock'></span> Mostrar Senha</a>
+
+        <div class="auth-component-error alert alert-danger"></div>
+
+        <div class='item-login' style='margin-top: 20px'>
+            <button class='btn btn-lg btn-primary auth-component-changepasswd-btn' data-loading-text="<span class='fa fa-spin fa-refresh'></span> Salvando..." id='btn-changepasswd'><span class='fa fa-check-square'></span> Salvar nova senha</button>
+         </div>
+
+         
+    </div>
+
+
+</div>
+</body>

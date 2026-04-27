@@ -1,0 +1,2918 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agendamentos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f0f2f5;
+      --surface:   #ffffff;
+      --card:      #ffffff;
+      --subcard:   #f8fafc;
+      --border:    #e2e8f0;
+      --border-hi: #cbd5e1;
+      --accent:    #3b5bdb;
+      --accent2:   #6680e8;
+      --ok:        #059669;
+      --ok2:       #34d399;
+      --warn:      #d97706;
+      --danger:    #dc2626;
+      --text:      #111827;
+      --muted:     #6b7280;
+      --muted2:    #e5e7eb;
+      --sidebar:   #1a1f36;
+      --sidebar-border: #252d52;
+      --sidebar-surface: #20274a;
+      --sidebar-text: #e2e8f0;
+      --sidebar-muted: #6b7cad;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Inter', sans-serif;
+    }
+
+    html { height: 100%; }
+    body  { background: var(--bg); color: var(--text); font-family: var(--sans); height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* ── TOPBAR ── */
+    .app       { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-height: 0; }
+    .topbar    { display: flex; justify-content: space-between; align-items: center;
+                 padding: 0 1.5rem; height: 52px; min-height: 52px;
+                 border-bottom: 2px solid var(--accent);
+                 background: var(--sidebar); flex-shrink: 0; z-index: 100; }
+    .topbar-title { font-family: var(--mono); font-size: .75rem; color: #c5cae9; letter-spacing: .06em;
+                    display: flex; align-items: center; gap: .6rem; }
+    .topbar-logo  { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: .65rem; color: #fff; font-weight: 700; font-family: var(--mono); flex-shrink: 0; }
+    .topbar-right  { display: flex; gap: .75rem; align-items: center; }
+
+    /* ── TAB TOGGLE (topbar center) ── */
+    .modo-toggle-top { display: flex; border: 1px solid var(--sidebar-border); border-radius: 6px; overflow: hidden; }
+    .modo-btn-top { background: transparent; color: var(--sidebar-muted); font-size: .68rem;
+                    padding: .32rem .9rem; border: none; border-right: 1px solid var(--sidebar-border);
+                    letter-spacing: .05em; font-family: var(--mono); text-transform: uppercase; cursor: pointer;
+                    transition: all .2s; }
+    .modo-btn-top:last-child { border-right: none; }
+    .modo-btn-top.ativo { background: var(--accent); color: #fff; }
+    .modo-btn-top:hover:not(.ativo) { color: #a5b4fc; }
+
+    /* ── LAYOUT PRINCIPAL ── */
+    .workspace {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── PAINEL LATERAL ESQUERDO ── */
+    .painel-pendentes {
+      background: var(--sidebar);
+      border-right: 1px solid var(--sidebar-border);
+      display: flex; flex-direction: column; overflow: hidden;
+      min-height: 0;
+    }
+    .painel-header {
+      padding: .7rem 1rem;
+      border-bottom: 1px solid var(--sidebar-border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .painel-titulo {
+      font-family: var(--mono); font-size: .6rem;
+      text-transform: uppercase; letter-spacing: .12em; color: var(--sidebar-muted);
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .painel-titulo .dot-warn { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+    .painel-badge { background: var(--sidebar-surface); color: #a5b4fc; font-size: .6rem;
+                    padding: .1rem .45rem; border-radius: 10px; font-family: var(--mono); }
+    .painel-body { flex: 1; overflow-y: auto; padding: .65rem; display: flex; flex-direction: column; gap: .45rem; min-height: 0; }
+
+    /* ── MINI-CARD PENDENTE ── */
+    .mini-card {
+      background: var(--sidebar-surface);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 6px;
+      padding: .6rem .8rem;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .mini-card:hover { border-color: var(--accent2); }
+    .mini-card.marcado { border-color: var(--accent); background: rgba(59,91,219,.1); }
+    .mini-card.marcado::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--accent); border-radius: 6px 0 0 6px;
+    }
+    .mc-row-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .4rem; margin-bottom: .25rem; }
+    .mc-nome { font-size: .78rem; font-weight: 600; color: var(--sidebar-text); line-height: 1.2; }
+    .mc-tipo { font-size: .6rem; color: var(--sidebar-muted); font-family: var(--mono); margin-top: .1rem; }
+    .mc-row-bot { display: flex; justify-content: space-between; align-items: center; }
+    .mc-data  { font-size: .6rem; color: #818cf8; font-family: var(--mono); }
+    .mc-valor { font-size: .68rem; color: var(--ok2); font-family: var(--mono); font-weight: 500; }
+    .mc-tags  { display: flex; flex-wrap: wrap; gap: .2rem; margin-top: .3rem; }
+    .mc-tag   { font-size: .57rem; padding: .1rem .35rem; border-radius: 3px; font-family: var(--mono); }
+    .mc-tag.clin { background: rgba(59,91,219,.15); color: #818cf8; }
+    .mc-tag.lab  { background: rgba(5,150,105,.12); color: var(--ok2); }
+    .mc-tag.orc  { background: rgba(217,119,6,.15); color: var(--warn); }
+    .mc-check { width: 15px; height: 15px; border: 1.5px solid #3d4466; border-radius: 3px; flex-shrink: 0;
+                display: flex; align-items: center; justify-content: center; font-size: .55rem; color: #fff; }
+    .mini-card.marcado .mc-check { background: var(--accent); border-color: var(--accent); }
+
+    .painel-empty { padding: 1.5rem 1rem; text-align: center; color: var(--sidebar-muted);
+                    font-size: .68rem; font-family: var(--mono); }
+
+    .painel-footer {
+      padding: .7rem 1rem;
+      border-top: 1px solid var(--sidebar-border);
+      display: flex; flex-direction: column; gap: .4rem;
+      flex-shrink: 0;
+    }
+    .footer-resumo { display: flex; justify-content: space-between; }
+    .footer-label  { font-size: .6rem; color: var(--sidebar-muted); font-family: var(--mono); }
+    .footer-valor  { font-size: .68rem; color: var(--ok2); font-family: var(--mono); font-weight: 600; }
+    .btn-confirmar { background: var(--accent); color: #fff; border: none; border-radius: 5px;
+                     font-size: .68rem; font-weight: 600; padding: .45rem;
+                     cursor: pointer; width: 100%; font-family: var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .btn-confirmar:hover { opacity: .9; }
+    .btn-desmarcar-tudo { background: transparent; color: var(--sidebar-muted); border: 1px solid var(--sidebar-border); border-radius: 5px;
+                          font-size: .62rem; padding: .3rem;
+                          cursor: pointer; width: 100%; font-family: var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .btn-desmarcar-tudo:hover { border-color: var(--danger); color: #f87171; }
+
+    /* ── COLUNAS DE CONTEÚDO ── */
+    .coluna { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; min-height: 0; min-width: 0; contain: layout; }
+    .coluna:last-child { border-right: none; }
+
+    .col-header { display: flex; justify-content: space-between; align-items: center;
+                  padding: .65rem 1.1rem; border-bottom: 1px solid var(--border);
+                  background: var(--surface); flex-shrink: 0; }
+    .col-titulo { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em;
+                  text-transform: uppercase; color: var(--muted);
+                  display: flex; align-items: center; gap: .4rem; }
+    .col-titulo .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .col-clinicas .dot { background: var(--accent); }
+    .col-lab     .dot  { background: var(--ok); }
+    .col-count { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
+    .col-body  { padding: 1rem; display: flex; flex-direction: column; gap: .85rem; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; scroll-behavior: smooth; }
+
+    /* ── BOTÕES ── */
+    button { font-family: var(--mono); font-size: .7rem; font-weight: 600;
+             letter-spacing: .05em; padding: .4rem .9rem; border: none;
+             cursor: pointer; text-transform: uppercase; transition: all .2s ease; }
+    button:hover  { opacity: .85; }
+    button:active { opacity: .65; }
+    .btn-add       { background: var(--accent); color: #fff; border-radius: 5px; padding: .35rem .8rem; font-size: .65rem; }
+    .btn-add:hover { opacity: .9; }
+    .btn-add.lab   { background: var(--ok); }
+    .btn-processar { background: var(--accent); color: #fff; border-radius: 5px; padding: .38rem 1.1rem; font-size: .7rem; }
+
+    /* ── I3 — mini-card sem paciente ── */
+    .mini-card.mc-sem-paciente { border-left: 3px solid var(--warn); }
+    .mini-card.mc-sem-paciente .mc-nome { color: var(--warn); }
+
+    /* ── I4 — undo de remoção de mini-card ── */
+    .mc-undo {
+      font-size: .7rem; color: var(--sidebar-muted); padding: .4rem .6rem;
+      background: rgba(0,0,0,.12); border-radius: 5px; margin-bottom: .3rem;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .mc-undo-btn {
+      background: none; border: 1px solid var(--sidebar-border); border-radius: 3px;
+      color: var(--sidebar-text); font-size: .65rem; padding: .1rem .4rem; cursor: pointer;
+    }
+    .mc-undo-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── I6 — confirmação inline no ↺ novo ── */
+    .btn-confirm-novo { display: inline-flex; align-items: center; gap: .2rem; }
+    .btn-rem       { background: none; border: 1px solid transparent; color: var(--danger);
+                     font-size: .65rem; padding: .2rem .45rem; opacity: .55; border-radius: 3px; }
+    .btn-rem:hover { opacity: 1; border-color: var(--danger); }
+    .btn-icon      { background: none; border: none; color: var(--muted); font-size: .85rem;
+                     padding: .2rem .4rem; cursor: pointer; opacity: .6; }
+    .btn-icon:hover { opacity: 1; color: var(--text); }
+    .btn-add-clinica { background: transparent; border: 1px dashed var(--border-hi);
+                       color: var(--muted); font-size: .63rem; padding: .38rem .8rem; width: 100%; border-radius: 5px; }
+    .btn-add-clinica:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-buscar { background: var(--surface); border: 1px solid var(--border-hi); color: var(--accent);
+                  font-size: .63rem; padding: .42rem .8rem; flex-shrink: 0; white-space: nowrap; border-radius: 0 4px 4px 0; }
+    .btn-buscar:hover { border-color: var(--accent); background: #eff2ff; }
+    .btn-buscar.loading { opacity: .5; pointer-events: none; }
+
+    /* ── BOTÃO MARCAR AGENDAMENTO ── */
+    .btn-marcar {
+      background: rgba(5,150,105,.08); border: 1px solid rgba(5,150,105,.4); color: var(--ok);
+      font-family: var(--mono); font-size: .62rem; text-transform: uppercase;
+      letter-spacing: .07em; padding: 0 .9rem; flex-shrink: 0; border-radius: 4px;
+      transition: all .2s ease; white-space: nowrap;
+      align-self: stretch; display: flex; align-items: center;
+    }
+    .btn-marcar:hover { background: rgba(5,150,105,.15); border-color: var(--ok); opacity: 1; }
+    .btn-marcar.marcado {
+      background: rgba(220,38,38,.07); border: 1px solid rgba(220,38,38,.4);
+      color: var(--danger);
+    }
+    .btn-marcar.marcado:hover { background: rgba(220,38,38,.12); border-color: var(--danger); }
+
+    /* ── TOGGLE MODO (dentro do card) ── */
+    .modo-toggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; align-self: flex-start; flex-shrink: 0; }
+    .modo-btn { background: transparent; color: var(--muted); font-size: .6rem;
+                padding: .28rem .75rem; border: none; border-right: 1px solid var(--border); letter-spacing: .06em; white-space: nowrap; flex-shrink: 0; }
+    .modo-btn:last-child { border-right: none; }
+    .modo-btn.ativo { background: var(--accent); color: #fff; opacity: 1; }
+    .modo-btn:hover:not(.ativo) { color: var(--accent); background: #eff2ff; }
+
+    /* ── CARD ── */
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: border-color .2s, box-shadow .2s; overflow: visible; }
+    .card.entrando { animation: fadeSlideIn .2s ease; }
+    .mini-card.entrando { animation: fadeSlideIn .2s ease; }
+    .card.confirmado { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,91,219,.1); }
+    .card.processado { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(5,150,105,.1); }
+    .card.erro       { border-color: var(--danger); }
+    .card.orcando    { border-color: var(--warn); }
+
+    .card-top { display: flex; align-items: stretch; gap: .55rem;
+                padding: .65rem .85rem; border-bottom: 1px solid var(--border);
+                cursor: pointer; user-select: none; background: var(--surface); }
+    .card-top:hover { background: #f8fafc; }
+    /* ── CARD RESUMO (visível quando fechado) ── */
+    .card-resumo { display: none; flex-direction: column; gap: .15rem; margin-top: .25rem; }
+    .card.fechado .card-resumo { display: flex; }
+    .card-resumo-nome    { font-family: var(--mono); font-size: .82rem; color: var(--text); font-weight: 600; }
+    .card-resumo-clinica { font-family: var(--mono); font-size: .75rem; color: var(--accent2); }
+    .card-resumo-valor   { font-family: var(--mono); font-size: .75rem; color: var(--ok); }
+    .card-resumo-tel     { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+    .card-info  { flex: 1; min-width: 0; }
+    .card-nome  { font-family: var(--mono); font-size: .78rem; color: var(--text); font-weight: 600;
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-nome.vazio { color: var(--muted); font-style: italic; font-weight: 400; }
+    .card-meta       { display: flex; gap: .6rem; margin-top: .18rem; flex-wrap: wrap; }
+    .card-meta span  { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
+    .card-meta .tag  { background: var(--muted2); padding: .1rem .35rem; font-size: .58rem; color: var(--muted); border-radius: 3px; }
+    .card.fechado .card-nome { display: none; }
+    .card.fechado .card-meta { display: none; }
+    .card-valor { font-family: var(--mono); font-size: .76rem; color: var(--ok); white-space: nowrap; flex-shrink: 0; font-weight: 600; }
+    .card-valor.zero { color: var(--muted); font-weight: 400; }
+    .card-actions { display: flex; gap: .2rem; flex-shrink: 0; }
+    .card-collapse { display: flex; align-items: center; justify-content: center;
+                     width: 20px; height: 20px; border: 1px solid var(--border);
+                     color: var(--muted); font-size: .72rem; border-radius: 4px;
+                     transition: transform .2s, border-color .15s, color .15s; flex-shrink: 0; }
+    .card-collapse:hover { border-color: var(--accent); color: var(--accent); }
+    .card.fechado .card-collapse { transform: rotate(-90deg); }
+    .card-body { padding: .9rem; display: flex; flex-direction: column; gap: .8rem;
+                 overflow: visible; transition: max-height .3s ease, padding .2s ease, opacity .2s ease;
+                 max-height: 8000px; opacity: 1; }
+    .card.fechado .card-body { max-height: 0 !important; overflow: hidden !important; padding-top: 0; padding-bottom: 0; opacity: 0; pointer-events: none; }
+    .card-status { font-family: var(--mono); font-size: .63rem; padding: .38rem .7rem;
+                   border-left: 3px solid var(--border); color: var(--muted); display: none; }
+    .card-status.visivel { display: block; }
+    .card-status.ok   { border-color: var(--ok);    color: var(--ok); background: rgba(5,150,105,.05); }
+    .card-status.erro { border-color: var(--danger); color: var(--danger); background: rgba(220,38,38,.04); }
+
+    /* ── CAMPOS ── */
+    .grid  { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+    .field { display: flex; flex-direction: column; gap: .28rem; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-family: var(--mono); font-size: .58rem; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+    input, select { background: #f9fafb; border: 1px solid var(--border); color: var(--text);
+                    font-family: var(--mono); font-size: .78rem; padding: .45rem .7rem;
+                    outline: none; width: 100%; transition: border-color .15s; border-radius: 4px; }
+    input:focus, select:focus { border-color: var(--accent); background: #fff; }
+    input.erro { border-color: var(--danger); background: #fff5f5; }
+    input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .5; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .erro-msg { font-family: var(--mono); font-size: .58rem; color: var(--danger); min-height: .85rem; }
+
+    .codigo-row { display: flex; gap: 0; align-items: flex-start; }
+    .codigo-row input { flex: 1; border-radius: 4px 0 0 4px; border-right: none; }
+    .codigo-row input:focus { z-index: 1; }
+
+    .paciente-info { background: #f0f9ff; border: 1px solid #bae6fd; padding: .75rem .9rem; display: none; border-radius: 5px; }
+    .paciente-info.visivel { display: block; }
+    .paciente-info-linha { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .paciente-info-dados { display: flex; flex-direction: column; gap: .18rem; flex: 1; }
+    .pi-nome   { font-family: var(--mono); font-size: .92rem; font-weight: 600; color: var(--text); }
+    .pi-detail { font-family: var(--mono); font-size: .75rem; color: #0369a1; }
+    .btn-copiar { background: none; border: 1px solid var(--border); color: var(--muted); font-size: .58rem; padding: .28rem .55rem; border-radius: 4px; }
+    .btn-copiar:hover  { border-color: var(--accent2); color: var(--accent); }
+    .btn-copiar.copiado { border-color: var(--ok); color: var(--ok); }
+
+    .subcard { background: var(--subcard); border: 1px solid var(--border); padding: .75rem; display: flex; flex-direction: column; gap: .65rem; border-radius: 6px; }
+    .subcard-header { display: flex; justify-content: space-between; align-items: center; }
+    .subcard-label  { font-family: var(--mono); font-size: .6rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+    .subcards-lista { display: flex; flex-direction: column; gap: .55rem; }
+
+    /* ── SEARCHBOX ── */
+    .searchbox { position: relative; }
+    .search-dropdown { display: none; position: absolute; top: calc(100% + 1px); left: 0; right: 0;
+                       background: var(--surface); border: 1px solid var(--accent); z-index: 50;
+                       max-height: calc(6 * 2.4rem); overflow-y: auto;
+                       opacity: 0; transition: opacity .15s ease; border-radius: 0 0 5px 5px;
+                       box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .search-dropdown.aberto { display: block; opacity: 1; }
+    /* Dropdown de exames: empurra o layout ao invés de flutuar */
+    .exame-add-row .search-dropdown {
+      position: static;
+      max-height: calc(6 * 2.4rem);
+      overflow-y: auto;
+      border-top: none;
+    }
+    .exame-add-row .searchbox {
+      display: flex;
+      flex-direction: column;
+      max-width: calc(100% - 3.5rem);
+    }
+    .search-item { padding: .45rem .7rem; font-family: var(--mono); font-size: .73rem; color: var(--text);
+                   cursor: pointer; border-bottom: 1px solid var(--border); }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover, .search-item.ativo { background: #eff2ff; color: var(--accent); }
+    .search-item em { font-style: normal; color: var(--accent); font-weight: 600; }
+    .search-item.especial { color: var(--warn); }
+    .search-item.especial:hover { background: #fffbeb; color: var(--warn); }
+    .search-hint { padding: .45rem .7rem; font-family: var(--mono); font-size: .68rem; color: var(--muted); }
+
+    /* ── EXAMES ── */
+    .exames-lista { display: flex; flex-direction: column; gap: .28rem; }
+    .exame-row { display: flex; align-items: center; gap: .4rem; background: #f9fafb;
+                 border: 1px solid var(--border); padding: .28rem .55rem; border-radius: 4px; }
+    .exame-row-nome  { flex: 1; font-family: var(--mono); font-size: .7rem; color: var(--text);
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .exame-row-valor { font-family: var(--mono); font-size: .65rem; color: var(--ok); flex-shrink: 0; font-weight: 500; }
+    .exame-row-qtde  { width: 40px; background: #fff; border: 1px solid var(--border);
+                       color: var(--text); font-family: var(--mono); font-size: .7rem;
+                       padding: .18rem .28rem; text-align: center; flex-shrink: 0; border-radius: 3px; }
+    .exame-row .btn-rem { padding: .12rem .3rem; font-size: .65rem; }
+    .exame-add-row { display: flex; gap: .5rem; align-items: flex-start; }
+    .exame-add-row .searchbox { flex: 1; }
+    .btn-add-exame { background: var(--accent); color: #fff; font-size: .65rem; padding: 0 .75rem; flex-shrink: 0; border-radius: 4px; }
+    .btn-add-exame:disabled { opacity: .3; pointer-events: none; }
+
+    /* ── ORÇAMENTO RESULTADO ── */
+    .orc-resultado { display: flex; flex-direction: column; gap: .5rem; }
+    .orc-clinica-card { background: #f9fafb; border: 1px solid var(--border); cursor: pointer;
+                        transition: border-color .15s; border-radius: 6px; overflow: hidden; }
+    .orc-clinica-card:hover { border-color: var(--accent); }
+    .orc-clinica-header { display: flex; justify-content: space-between; align-items: center;
+                          padding: .45rem .7rem; border-bottom: 1px solid var(--border); background: #fff; }
+    .orc-clinica-nome  { font-family: var(--mono); font-size: .7rem; color: var(--accent); font-weight: 500; }
+    .orc-clinica-total { font-family: var(--mono); font-size: .7rem; color: var(--ok); font-weight: 600; }
+    .orc-clinica-body  { padding: .45rem .7rem; display: flex; flex-direction: column; gap: .18rem; }
+    .orc-item { font-family: var(--mono); font-size: .63rem; display: flex; justify-content: space-between; gap: .5rem; padding: .12rem 0; }
+    .orc-item.disponivel   { color: var(--text); }
+    .orc-item.indisponivel { color: var(--muted); }
+    .orc-item-preco { flex-shrink: 0; }
+    .orc-item.disponivel   .orc-item-preco { color: var(--ok); }
+    .orc-item.indisponivel .orc-item-preco { color: var(--danger); }
+    .orc-clinica-footer { padding: .3rem .7rem; border-top: 1px solid var(--border);
+                          display: flex; justify-content: space-between; align-items: center; gap: .5rem; background: #fff; }
+    .orc-clinica-hint { font-family: var(--mono); font-size: .56rem; color: var(--muted); }
+    .btn-copiar-orc { background: none; border: 1px solid var(--border); color: var(--muted); font-size: .58rem; padding: .22rem .55rem; border-radius: 3px; }
+    .btn-copiar-orc:hover  { border-color: var(--accent2); color: var(--accent); }
+    .btn-copiar-orc.copiado { border-color: var(--ok); color: var(--ok); }
+    .btn-copiar-tudo { background: transparent; border: 1px solid var(--border-hi); color: var(--accent); width: 100%; padding: .45rem; font-size: .65rem; border-radius: 5px; }
+    .btn-copiar-tudo:hover { border-color: var(--accent); background: #eff2ff; }
+    .btn-gerar-orc { background: var(--warn); color: #fff; font-weight: 700; width: 100%; padding: .55rem; border-radius: 5px; }
+    .btn-gerar-orc:disabled { opacity: .4; pointer-events: none; }
+
+    /* ── ALERTA INDISPONÍVEIS ── */
+    .alerta-indisp { background: #fffbeb; border: 1px solid #fcd34d;
+                     padding: .45rem .7rem; font-family: var(--mono); font-size: .6rem;
+                     color: var(--warn); display: none; border-radius: 4px; }
+    .alerta-indisp.visivel { display: block; }
+
+    .status-global { font-family: var(--mono); font-size: .65rem; color: var(--sidebar-muted); }
+    .status-global .ok  { color: var(--ok2); }
+    .status-global .err { color: #f87171; }
+
+    .coluna.oculta { display: none; }
+    @media (max-width: 800px) {
+      .workspace { grid-template-columns: 1fr; }
+      .painel-pendentes { display: none; }
+      .coluna { border-right: none; }
+    }
+
+    /* ── CALENDÁRIO FIXO ── */
+    .cal-wrapper {
+      display: flex; gap: .65rem; align-items: flex-start;
+      grid-column: 1 / -1;
+    }
+    .cal-box {
+      flex: 1; background: #f9fafb; border: 1px solid var(--border);
+      padding: .55rem; display: flex; flex-direction: column; gap: .35rem; border-radius: 5px;
+    }
+    .cal-box.erro { border-color: var(--danger); background: #fff5f5; }
+    .cal-nav {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cal-nav-btn {
+      background: none; border: 1px solid var(--border); color: var(--accent);
+      font-family: var(--mono); font-size: .62rem; padding: .18rem .45rem;
+      cursor: pointer; text-transform: none; letter-spacing: 0; border-radius: 3px;
+    }
+    .cal-nav-btn:hover { border-color: var(--accent); background: #eff2ff; }
+    .cal-nav-btn:disabled { opacity: .2; pointer-events: none; }
+    .cal-mes-label {
+      font-family: var(--mono); font-size: .62rem; color: var(--accent);
+      letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+    }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+    }
+    .cal-dow {
+      font-family: var(--mono); font-size: .5rem; color: var(--muted);
+      text-align: center; padding: .18rem 0; letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .cal-day {
+      font-family: var(--mono); font-size: .65rem; color: var(--text);
+      text-align: center; padding: .28rem .08rem; cursor: pointer;
+      border: 1px solid transparent; transition: all .12s; border-radius: 3px; line-height: 1;
+    }
+    .cal-day:hover:not(.cal-day--disabled):not(.cal-day--selected) {
+      border-color: var(--accent); color: var(--accent); background: #eff2ff;
+    }
+    .cal-day--empty { pointer-events: none; }
+    .cal-day--disabled { color: #d1d5db; cursor: default; pointer-events: none; }
+    .cal-day--overflow { color: #d1d5db; opacity: .6; }
+    .cal-day--today    { color: var(--accent); border-color: var(--border-hi); font-weight: 600; }
+    .cal-day--selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .cal-day--today.cal-day--selected { background: var(--accent); color: #fff; }
+    /* Campo de horário ao lado do calendário */
+    .cal-horario-col {
+      display: flex; flex-direction: column; gap: .3rem; flex-shrink: 0; width: 68px;
+    }
+    .cal-horario-col label {
+      font-family: var(--mono); font-size: .58rem; color: var(--muted);
+      letter-spacing: .08em; text-transform: uppercase;
+    }
+    .cal-horario-input {
+      background: #f9fafb; border: 1px solid var(--border); color: var(--text);
+      font-family: var(--mono); font-size: .88rem; padding: .45rem .35rem;
+      outline: none; width: 100%; text-align: center; letter-spacing: .04em;
+      transition: border-color .15s; border-radius: 4px;
+    }
+    .cal-horario-input:focus { border-color: var(--accent); background: #fff; }
+    .cal-horario-input.erro  { border-color: var(--danger); background: #fff5f5; }
+
+
+    /* ── BOTÃO SALVAR NA FILA ── */
+    .btn-salvar-fila {
+      background: var(--accent); border: none; color: #fff;
+      font-family: var(--mono); font-size: .62rem; text-transform: uppercase;
+      letter-spacing: .06em; padding: .35rem 1rem; flex-shrink: 0; border-radius: 5px;
+      transition: all .2s ease; white-space: nowrap; cursor: pointer;
+    }
+    .btn-salvar-fila:hover { background: var(--accent2); opacity: 1; }
+    .btn-salvar-fila.salvo { background: var(--ok); }
+    /* ── MINI-CARD: botão remover ── */
+    .mc-btn-rem { background: none; border: none; color: var(--sidebar-muted); font-size: .65rem;
+                  padding: .1rem .3rem; cursor: pointer; flex-shrink: 0; border-radius: 3px; }
+    .mc-btn-rem:hover { color: #f87171; }
+    /* ── MINI-CARD: checkbox toggle ── */
+    .mc-check-btn {
+      background: rgba(5,150,105,.1); border: 1px solid rgba(5,150,105,.4); color: var(--ok);
+      font-family: var(--mono); font-size: .58rem; padding: .25rem .5rem; border-radius: 4px;
+      cursor: pointer; white-space: nowrap; transition: all .15s; width: 100%;
+      text-align: center; margin-top: .35rem;
+    }
+    .mc-check-btn.desmarcado { background: rgba(220,38,38,.07); border-color: rgba(220,38,38,.4); color: var(--danger); }
+
+
+    /* ── PREVENT HORIZONTAL OVERFLOW ── */
+    .col-body > * { min-width: 0; max-width: 100%; }
+    .card { min-width: 0; max-width: 100%; }
+    .card-body { min-width: 0; }
+    .grid { min-width: 0; }
+    .cal-wrapper { min-width: 0; overflow: hidden; }
+    .cal-box { min-width: 0; flex: 1; }
+    .searchbox { min-width: 0; max-width: 100%; }
+    .search-dropdown { max-width: 100%; }
+    .subcards-lista { min-width: 0; }
+    .subcard { min-width: 0; overflow: hidden; }
+    .exames-lista { min-width: 0; }
+    .exame-row { min-width: 0; flex-wrap: wrap; }
+    .exame-row-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .orc-resultado { min-width: 0; }
+    .orc-clinica-card { min-width: 0; overflow: hidden; }
+
+    /* ── COL-BODY: scroll apenas vertical (overflow-y definido acima) ── */
+
+    /* ── CARD HIGHLIGHT (foco via painel) ── */
+    @keyframes cardHighlight {
+      0%   { box-shadow: 0 0 0 3px rgba(59,91,219,.7); }
+      100% { box-shadow: var(--card-shadow); }
+    }
+    .card-highlight { animation: cardHighlight 1.2s ease-out forwards; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,.04); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; border: 1px solid rgba(255,255,255,.4); }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    ::-webkit-scrollbar-thumb:active { background: var(--accent); }
+    /* Firefox */
+    * { scrollbar-width: thin; scrollbar-color: var(--border-hi) transparent; }
+    .col-body { scrollbar-gutter: stable; }
+    .painel-body { scrollbar-width: thin; scrollbar-color: #3d4466 transparent; }
+
+    /* ── Edição de card na fila ── */
+
+    /* Mini-card em estado de edição */
+    .mini-card.mc-em-edicao {
+      opacity: 0.55;
+      border-style: dashed;
+      border-color: var(--accent2);
+      pointer-events: none;
+    }
+
+    .mc-editando-badge {
+      font-size: .57rem;
+      font-family: var(--mono);
+      color: var(--accent2);
+      padding: .1rem .3rem;
+      border: 1px solid var(--accent2);
+      border-radius: 3px;
+      margin-top: .2rem;
+      display: inline-block;
+    }
+
+    .mc-btn-editar {
+      background: none;
+      border: none;
+      color: var(--sidebar-muted);
+      font-size: .65rem;
+      cursor: pointer;
+      padding: .15rem .3rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .mc-btn-editar:hover { color: var(--accent); background: rgba(99,102,241,.1); }
+    .mc-btn-disabled { opacity: 0.3; pointer-events: none; cursor: default; }
+
+    /* Card em modo edição — destaque na borda */
+    .card.card-em-edicao {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 2px rgba(99,102,241,.2);
+    }
+    .card.card-em-edicao .card-top {
+      background: rgba(99,102,241,.06);
+    }
+
+    /* ── FEEDBACK: item adicionado à fila ── */
+    @keyframes painelPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(59,91,219,.7); }
+      50%  { box-shadow: 0 0 0 5px rgba(59,91,219,.25); }
+      100% { box-shadow: 0 0 0 0 rgba(59,91,219,0); }
+    }
+    .painel-pendentes.novo-item { animation: painelPulse 0.65s ease-out; }
+
+    /* ── FEEDBACK: erro ao tentar salvar sem preencher campos ── */
+    @keyframes btnShake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-5px); }
+      60%     { transform: translateX(5px); }
+      80%     { transform: translateX(-3px); }
+    }
+    .btn-salvar-fila.erro-shake {
+      animation: btnShake 0.35s ease;
+      border: 1px solid var(--danger) !important;
+      background: rgba(220,38,38,.85) !important;
+    }
+    /* ── PAINEL SISTEMA (webview) ── */
+    .painel-sistema {
+      display: none;
+      position: absolute;
+      /* ocupa todo o workspace abaixo da topbar */
+      top: 52px; left: 0; right: 0; bottom: 0;
+      z-index: 50;
+      background: var(--bg);
+    }
+    .painel-sistema.visivel { display: flex; flex-direction: column; }
+    .painel-sistema webview {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="topbar-logo">Rx</div>
+      agendamentos
+    </div>
+    <div class="modo-toggle-top" id="tabToggle">
+      <button class="modo-btn-top ativo" id="tabClinicas">🏥 Clínicas</button>
+      <button class="modo-btn-top" id="tabLab">🧪 Laboratório</button>
+      <button class="modo-btn-top" id="tabSistema">🖥 Sistema</button>
+    </div>
+    <div class="topbar-right">
+      <span class="status-global" id="statusGlobal">carregando...</span>
+    </div>
+  </div>
+
+  <!-- ── PAINEL SISTEMA — webview embutido ── -->
+  <div class="painel-sistema" id="painelSistema">
+    <webview
+      id="webviewSistema"
+      src="https://cimcero.pentagono.info/dash"
+      allowpopups
+      style="flex:1;width:100%;border:none;"
+    ></webview>
+  </div>
+
+  <div class="workspace">
+
+    <!-- ── PAINEL PENDENTES ── -->
+    <div class="painel-pendentes" id="painelPendentes">
+      <div class="painel-header">
+        <span class="painel-titulo"><span class="dot-warn"></span>Pendentes / Confirmar</span>
+        <span class="painel-badge" id="countPendentes">0</span>
+      </div>
+      <div class="painel-body" id="listaPendentes">
+        <div class="painel-empty" id="painelEmpty">Nenhum agendamento marcado.<br>Marque cards para confirmar.</div>
+      </div>
+      <div class="painel-footer">
+        <div class="footer-resumo">
+          <span class="footer-label" id="footerCount">0 selecionados</span>
+          <span class="footer-valor" id="footerTotal">R$ 0,00</span>
+        </div>
+        <button class="btn-confirmar" onclick="processar()">✓ Confirmar Selecionados</button>
+        <button class="btn-desmarcar-tudo" onclick="desmarcarTodos()">✕ Desmarcar Todos</button>
+      </div>
+    </div>
+
+    <div class="coluna col-clinicas">
+      <div class="col-header">
+        <span class="col-titulo"><span class="dot"></span>Clínicas Médicas</span>
+        <span class="col-count" id="countClinicas"></span>
+      </div>
+      <div class="col-body" id="listaClinicas"></div>
+    </div>
+
+    <div class="coluna col-lab oculta">
+      <div class="col-header">
+        <span class="col-titulo"><span class="dot"></span>Laboratório</span>
+        <span class="col-count" id="countLab"></span>
+      </div>
+      <div class="col-body" id="listaLab"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Utilitário: escapa caracteres HTML para prevenir XSS
+// Usar sempre que dados externos forem inseridos via innerHTML
+// ─────────────────────────────────────────────────────────────
+function escHTML(str) {
+  if (!str && str !== 0) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estado global
+// ─────────────────────────────────────────────────────────────
+let clinicas      = []
+let laboratorios  = []
+let clinicasList  = []
+let banco         = null  // { clinicas, exames } — fonte única de verdade
+let contadorClinicas = 0
+let contadorLab      = 0
+let _edicaoEmAndamento = false  // flag: true enquanto edição de fila está ativa
+
+// ─────────────────────────────────────────────────────────────
+// Inicialização — carrega apenas /clinicas e /banco
+// exames.json foi eliminado; dados de exame vêm do banco
+// ─────────────────────────────────────────────────────────────
+async function inicializar() {
+  const status = document.getElementById('statusGlobal')
+  try {
+    const resBanco = await window.electronAPI.getBanco()
+    banco        = resBanco
+    laboratorios = resBanco.clinicas.filter(c => c.tipo === 'lab')
+    clinicasList = resBanco.clinicas.filter(c => c.tipo === 'clinica')
+    clinicas     = resBanco.clinicas.map(c => ({ codigo: c.id, nome: c.nome }))
+    status.innerHTML = `<span class="ok">${laboratorios.length} lab · ${clinicasList.length} clínica(s) · ${banco.exames.length} exames</span>`
+    // Cria os cards iniciais após banco carregado
+    adicionarCardClinica()
+    adicionarCardLab()
+    // Garante aba clínicas ativa (lab já foi criado acima)
+    const colLab = document.querySelector('.col-lab')
+    if (colLab && !colLab.classList.contains('oculta')) colLab.classList.add('oculta')
+    const colClin = document.querySelector('.col-clinicas')
+    if (colClin) colClin.classList.remove('oculta')
+    document.getElementById('tabClinicas').classList.add('ativo')
+    document.getElementById('tabLab').classList.remove('ativo')
+  } catch (err) {
+    status.innerHTML = `<span class="err">erro: ${err.message}</span>`
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Utilitários
+// ─────────────────────────────────────────────────────────────
+function highlight(text, query) {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return escHTML(text)
+  return escHTML(text.slice(0, idx)) + `<em>${escHTML(text.slice(idx, idx + query.length))}</em>` + escHTML(text.slice(idx + query.length))
+}
+function formatarMoeda(val) { return `R$ ${Number(val).toFixed(2).replace('.', ',')}` }
+function formatarData(iso) {
+  if (!iso) return ''
+  const [a, m, d] = iso.split('-'); return `${d}/${m}/${a}`
+}
+// ─────────────────────────────────────────────────────────────
+// CALENDÁRIO FIXO + HORÁRIO LIVRE
+// Retorna um wrapper DOM e a interface:
+//   { wrapper, getValue() → { data: 'YYYY-MM-DD', horario: 'HH:MM' },
+//     getValue().data | .horario, setErro(), limparErro() }
+// ─────────────────────────────────────────────────────────────
+function criarCalendarioHorario() {
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  let viewAno = hoje.getFullYear(), viewMes = hoje.getMonth()
+  let diaSelecionado = null // Date object
+
+  const wrapper = document.createElement('div'); wrapper.className = 'cal-wrapper'
+
+  // ── caixa calendário ──
+  const calBox = document.createElement('div'); calBox.className = 'cal-box'
+
+  // navegação
+  const nav = document.createElement('div'); nav.className = 'cal-nav'
+  const btnPrev = document.createElement('button'); btnPrev.className = 'cal-nav-btn'; btnPrev.textContent = '‹'
+  const mesLabel = document.createElement('span'); mesLabel.className = 'cal-mes-label'
+  const btnNext = document.createElement('button'); btnNext.className = 'cal-nav-btn'; btnNext.textContent = '›'
+  nav.appendChild(btnPrev); nav.appendChild(mesLabel); nav.appendChild(btnNext)
+
+  // grid
+  const grid = document.createElement('div'); grid.className = 'cal-grid'
+  const NOMES_MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+  function renderizar() {
+    // atualiza label
+    mesLabel.textContent = `${NOMES_MESES[viewMes]} ${viewAno}`
+
+    // bloqueia botão prev se já está no mês atual
+    const primeiroDiaDeHoje = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+    const primeiroDiaView   = new Date(viewAno, viewMes, 1)
+    btnPrev.disabled = primeiroDiaView <= primeiroDiaDeHoje
+
+    grid.innerHTML = ''
+    // cabeçalho dias da semana
+    DIAS_SEMANA.forEach(d => {
+      const c = document.createElement('div'); c.className = 'cal-dow'; c.textContent = d
+      grid.appendChild(c)
+    })
+    // offset do primeiro dia
+    const primeiro = new Date(viewAno, viewMes, 1)
+    const offset   = primeiro.getDay() // 0=Dom
+    // dias do mes anterior nos slots iniciais — sempre bloqueados (passado)
+    const totalDiasMesAnterior = new Date(viewAno, viewMes, 0).getDate()
+    for (let i = offset - 1; i >= 0; i--) {
+      const cel = document.createElement('div'); cel.className = 'cal-day cal-day--disabled cal-day--overflow'
+      cel.textContent = totalDiasMesAnterior - i
+      grid.appendChild(cel)
+    }
+    // dias do mes atual
+    const totalDias = new Date(viewAno, viewMes + 1, 0).getDate()
+    for (let d = 1; d <= totalDias; d++) {
+      const data = new Date(viewAno, viewMes, d)
+      const cel  = document.createElement('div'); cel.className = 'cal-day'
+      cel.textContent = d
+
+      if (data < hoje) {
+        cel.classList.add('cal-day--disabled')
+      } else {
+        if (data.getTime() === hoje.getTime()) cel.classList.add('cal-day--today')
+        if (diaSelecionado && data.getTime() === diaSelecionado.getTime()) cel.classList.add('cal-day--selected')
+        cel.addEventListener('click', () => {
+          diaSelecionado = data
+          renderizar()
+          calBox.classList.remove('erro')
+        })
+      }
+      grid.appendChild(cel)
+    }
+    // dias do proximo mes nos slots finais — clicaveis, navegam para o proximo mes
+    const totalCelulas = offset + totalDias
+    const sobra = totalCelulas % 7 === 0 ? 0 : 7 - (totalCelulas % 7)
+    for (let d = 1; d <= sobra; d++) {
+      const diaProximo = d
+      const cel = document.createElement('div'); cel.className = 'cal-day cal-day--overflow'
+      cel.textContent = diaProximo
+      cel.addEventListener('click', () => {
+        viewMes++; if (viewMes > 11) { viewMes = 0; viewAno++ }
+        diaSelecionado = new Date(viewAno, viewMes, diaProximo)
+        renderizar()
+        calBox.classList.remove('erro')
+      })
+      grid.appendChild(cel)
+    }
+  }
+
+  btnPrev.addEventListener('click', () => {
+    viewMes--; if (viewMes < 0) { viewMes = 11; viewAno-- }
+    renderizar()
+  })
+  btnNext.addEventListener('click', () => {
+    viewMes++; if (viewMes > 11) { viewMes = 0; viewAno++ }
+    renderizar()
+  })
+
+  calBox.appendChild(nav); calBox.appendChild(grid)
+  renderizar()
+
+  // ── campo horário ──
+  const horarioCol = document.createElement('div'); horarioCol.className = 'cal-horario-col'
+  const lblHor = document.createElement('label'); lblHor.textContent = 'Horário'
+  const inputHor = document.createElement('input')
+  inputHor.className = 'cal-horario-input'
+  inputHor.type = 'text'
+  inputHor.placeholder = '00:00'
+  inputHor.maxLength = 5
+  inputHor.setAttribute('inputmode', 'numeric')
+
+  // Máscara automática HH:MM + validação semântica
+  inputHor.addEventListener('input', () => {
+    let v = inputHor.value.replace(/\D/g, '').slice(0, 4)
+    if (v.length > 2) v = v.slice(0,2) + ':' + v.slice(2)
+    inputHor.value = v
+    // Validação semântica: clamp horas (00-23) e minutos (00-59)
+    if (v.length === 5) {
+      const [hh, mm] = v.split(':').map(Number)
+      if (hh > 23 || mm > 59) {
+        inputHor.classList.add('erro')
+      } else {
+        inputHor.classList.remove('erro')
+      }
+    } else {
+      inputHor.classList.remove('erro')
+    }
+  })
+
+  horarioCol.appendChild(lblHor); horarioCol.appendChild(inputHor)
+  wrapper.appendChild(calBox); wrapper.appendChild(horarioCol)
+
+  return {
+    wrapper,
+    getValue() {
+      const data = diaSelecionado
+        ? `${diaSelecionado.getFullYear()}-${String(diaSelecionado.getMonth()+1).padStart(2,'0')}-${String(diaSelecionado.getDate()).padStart(2,'0')}`
+        : ''
+      return { data, horario: inputHor.classList.contains('erro') ? '' : inputHor.value }
+    },
+    setErroData()    { calBox.classList.add('erro') },
+    limparErroData() { calBox.classList.remove('erro') },
+    setErroHorario()    { inputHor.classList.add('erro') },
+    limparErroHorario() { inputHor.classList.remove('erro') },
+    resetar() { diaSelecionado = null; inputHor.value = ''; renderizar(); calBox.classList.remove('erro'); inputHor.classList.remove('erro') },
+    setValue(data, horario) {
+      if (data) {
+        const [ano, mes, dia] = data.split('-').map(Number)
+        viewAno = ano; viewMes = mes - 1
+        diaSelecionado = new Date(ano, mes - 1, dia)
+        renderizar()
+        calBox.classList.remove('erro')
+      }
+      if (horario) { inputHor.value = horario; inputHor.classList.remove('erro') }
+    }
+  }
+}
+
+async function copiarParaClipboard(texto, btn, label) {
+  try {
+    await navigator.clipboard.writeText(texto)
+    btn.textContent = '✓ copiado'; btn.classList.add('copiado')
+    setTimeout(() => { btn.textContent = label || 'copiar'; btn.classList.remove('copiado') }, 2000)
+  } catch (_) {
+    btn.textContent = '✗ erro ao copiar'
+    setTimeout(() => { btn.textContent = label || 'copiar' }, 2000)
+  }
+}
+function atualizarCountColunas() {
+  const nClin = document.querySelectorAll('#listaClinicas .card').length
+  const nLab  = document.querySelectorAll('#listaLab .card').length
+  const cardClin = document.querySelector('#listaClinicas .card')
+  const cardLab  = document.querySelector('#listaLab .card')
+  document.getElementById('countClinicas').textContent = nClin
+    ? (cardClin?._modoEdicao ? 'editando fila' : 'preenchendo')
+    : ''
+  document.getElementById('countLab').textContent = nLab
+    ? (cardLab?._modoEdicao ? 'editando fila' : 'preenchendo')
+    : ''
+  atualizarRodapePainel()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Derivar itens de exame do banco para uma clínica específica
+// clinicaId: string | null — null retorna todos (primeiro preço disponível)
+// Retorna [{ label, value, valor }] compatível com criarSearchbox
+// ─────────────────────────────────────────────────────────────
+function itensExamesDaClinica(clinicaId) {
+  return banco.exames
+    .map(exame => {
+      const entrada = clinicaId
+        ? exame.clinicas.find(c => String(c.clinica_id) === String(clinicaId))  // Bug #2a — normaliza ID
+        : exame.clinicas[0]
+      if (!entrada) return null
+      return {
+        label: exame.nome_real || exame.nome_parametro,
+        value: String(entrada.id_exame_clinica),
+        valor: entrada.preco
+      }
+    })
+    .filter(Boolean)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Orçamento — lógica local usando banco já carregado no frontend
+// ─────────────────────────────────────────────────────────────
+function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
+  const clinicasAlvo = clinicaFiltroId
+    ? banco.clinicas.filter(c => String(c.id) === String(clinicaFiltroId))  // Bug #2a — normaliza ID
+    : (clinicasBase || banco.clinicas)
+
+  return clinicasAlvo.map(clinica => {
+    const disponiveis = []
+    for (const exame of banco.exames) {
+      if (!examesSolicitados.includes(exame.nome_parametro)) continue
+      const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(clinica.id))  // Bug #2a
+      if (entrada) disponiveis.push({
+        nome_parametro: exame.nome_parametro, nome_real: exame.nome_real,
+        id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco
+      })
+    }
+    const nomesDisponiveis = disponiveis.map(e => e.nome_parametro)
+    const indisponiveis    = examesSolicitados
+      .filter(n => !nomesDisponiveis.includes(n))
+      .map(n => {
+        const exame = banco.exames.find(e => e.nome_parametro === n)
+        return exame?.nome_real || n
+      })
+    const total            = disponiveis.reduce((acc, e) => acc + e.preco, 0)
+    return { clinica_id: clinica.id, clinica_nome: clinica.nome, disponiveis, indisponiveis, total }
+  })
+}
+
+// ─────────────────────────────────────────────────────────────
+// Formata mensagem enxuta para WhatsApp
+// Formato:
+//   *Orçamento — Nome*
+//
+//   DIAC — R$ 243,00 ✅
+//   Lab XYZ — R$ 198,00 ⚠️ fora: Vitamina D, TSH
+//
+// Clínicas sem nenhum disponível são omitidas.
+// ─────────────────────────────────────────────────────────────
+function formatarMensagem(orcamento, nomePaciente) {
+  const l = [`*Orçamento — ${nomePaciente}*\n`]
+  for (const item of orcamento) {
+    if (!item.disponiveis.length) continue
+    if (!item.indisponiveis.length) {
+      l.push(`${item.clinica_nome} — ${formatarMoeda(item.total)} ✅`)
+    }
+    // Labs com exames indisponíveis são omitidos da mensagem completa
+  }
+  return l.join('\n').trimEnd()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Renderiza resultado do orçamento
+// Clicar num card de clínica aciona a transição para modo agendar
+// ─────────────────────────────────────────────────────────────
+function renderizarOrcamento(container, orcamento, nomePaciente, onAgendar) {
+  container.innerHTML = ''
+  const mensagem = formatarMensagem(orcamento, nomePaciente)
+
+  const btnTudo = document.createElement('button')
+  btnTudo.className = 'btn-copiar-tudo'; btnTudo.textContent = 'copiar mensagem completa'
+  btnTudo.addEventListener('click', () => copiarParaClipboard(mensagem, btnTudo, 'copiar mensagem completa'))
+  container.appendChild(btnTudo)
+
+  for (const item of orcamento) {
+    const cc = document.createElement('div'); cc.className = 'orc-clinica-card'
+
+    // Só torna clicável se há exames disponíveis e há callback
+    if (onAgendar && item.disponiveis.length) {
+      cc.style.cursor = 'pointer'
+      cc.addEventListener('click', (e) => {
+        // Ignora clique no botão copiar
+        if (e.target.closest('.btn-copiar-orc')) return
+        onAgendar(item)
+      })
+    }
+
+    const hd = document.createElement('div'); hd.className = 'orc-clinica-header'
+    const ne = document.createElement('span'); ne.className = 'orc-clinica-nome'; ne.textContent = item.clinica_nome
+    const te = document.createElement('span'); te.className = 'orc-clinica-total'; te.textContent = formatarMoeda(item.total)
+    hd.appendChild(ne); hd.appendChild(te)
+
+    const bd = document.createElement('div'); bd.className = 'orc-clinica-body'
+    item.disponiveis.forEach(e => {
+      const r = document.createElement('div'); r.className = 'orc-item disponivel'
+      r.innerHTML = `<span>${e.nome_real}</span><span class="orc-item-preco">${formatarMoeda(e.preco)}</span>`
+      bd.appendChild(r)
+    })
+    item.indisponiveis.forEach(n => {
+      const r = document.createElement('div'); r.className = 'orc-item indisponivel'
+      r.innerHTML = `<span>${n}</span><span class="orc-item-preco">indisponível</span>`
+      bd.appendChild(r)
+    })
+
+    const ft = document.createElement('div'); ft.className = 'orc-clinica-footer'
+
+    if (onAgendar && item.disponiveis.length) {
+      const hint = document.createElement('span'); hint.className = 'orc-clinica-hint'
+      hint.textContent = '↵ clique para agendar'
+      ft.appendChild(hint)
+    }
+
+    const bc = document.createElement('button'); bc.className = 'btn-copiar-orc'; bc.textContent = 'copiar'
+    bc.addEventListener('click', e => {
+      e.stopPropagation()
+      const txt = item.indisponiveis.length
+        ? `${item.clinica_nome} — ${formatarMoeda(item.total)} ⚠️ fora: ${item.indisponiveis.join(', ')}`
+        : `${item.clinica_nome} — ${formatarMoeda(item.total)} ✅`
+      copiarParaClipboard(txt, bc, 'copiar')
+    })
+    ft.appendChild(bc)
+
+    cc.appendChild(hd); cc.appendChild(bd); cc.appendChild(ft)
+    container.appendChild(cc)
+  }
+
+}
+
+// ─────────────────────────────────────────────────────────────
+// Searchbox genérico — sem alteração
+// ─────────────────────────────────────────────────────────────
+function criarSearchbox(itens, placeholder) {
+  let lista = itens, idxAtivo = -1, cbSelect = null, cbConfirm = null
+  const wrapper  = document.createElement('div'); wrapper.className = 'searchbox'
+  const input    = document.createElement('input'); input.type = 'text'; input.placeholder = placeholder; input.autocomplete = 'off'
+  const hidden   = document.createElement('input'); hidden.type = 'hidden'; hidden.dataset.valor = ''
+  const dropdown = document.createElement('div'); dropdown.className = 'search-dropdown'
+  wrapper.appendChild(input); wrapper.appendChild(hidden); wrapper.appendChild(dropdown)
+
+  const fechar = () => { dropdown.classList.remove('aberto'); idxAtivo = -1; if (!hidden.dataset.valor) input.value = '' }
+  const getItems = () => Array.from(dropdown.querySelectorAll('.search-item'))
+  const moverFoco = dir => {
+    const its = getItems(); if (!its.length) return
+    its.forEach(i => i.classList.remove('ativo'))
+    idxAtivo = (idxAtivo + dir + its.length) % its.length
+    its[idxAtivo].classList.add('ativo')
+    const style = window.getComputedStyle(dropdown)
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      its[idxAtivo].scrollIntoView({ block: 'nearest' })
+    }
+  }
+  const confirmarAtivo = () => {
+    const its = getItems()
+    const alvo = idxAtivo >= 0 ? its[idxAtivo] : (its.length === 1 ? its[0] : null)
+    if (alvo) alvo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+  }
+  const renderizar = query => {
+    dropdown.innerHTML = ''; idxAtivo = -1
+    if (query.length < 2) { dropdown.innerHTML = '<div class="search-hint">digite ao menos 2 letras...</div>'; dropdown.classList.add('aberto'); return }
+    const filtrados = lista.filter(it => it.label.toLowerCase().includes(query.toLowerCase())).slice(0, 40)
+    if (!filtrados.length) { dropdown.innerHTML = '<div class="search-hint">nenhum resultado</div>'; dropdown.classList.add('aberto'); return }
+    filtrados.forEach((it, idx) => {
+      const item = document.createElement('div')
+      item.className = 'search-item' + (it.especial ? ' especial' : '')
+      item.innerHTML = it.especial ? it.label : highlight(it.label, query)
+      item.addEventListener('mousedown', e => {
+        e.preventDefault(); input.value = it.label; hidden.dataset.valor = it.value
+        input.classList.remove('erro'); dropdown.classList.remove('aberto'); idxAtivo = -1
+        if (cbSelect) cbSelect(it)
+        if (cbConfirm) cbConfirm(it)
+      })
+      dropdown.appendChild(item)
+    })
+    dropdown.classList.add('aberto')
+    const primeiros = dropdown.querySelectorAll('.search-item')
+    if (primeiros.length > 0) {
+      primeiros[0].classList.add('ativo')
+      idxAtivo = 0
+      if (cbSelect) cbSelect(filtrados[0])
+    }
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moverFoco(1) }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); moverFoco(-1) }
+    if ((e.key === 'Enter' || e.key === 'Tab') && dropdown.classList.contains('aberto')) { e.preventDefault(); confirmarAtivo() }
+    if (e.key === 'Escape') fechar()
+  })
+  const centralizarWrapper = () => requestAnimationFrame(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  let debounceTimer = null
+  input.addEventListener('input',  () => {
+    hidden.dataset.valor = ''
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => { renderizar(input.value.trim()); centralizarWrapper() }, 300)
+  })
+  input.addEventListener('focus',  () => {
+    centralizarWrapper()
+    if (input.value.trim().length >= 2) renderizar(input.value.trim())
+  })
+  input.addEventListener('blur',   () => setTimeout(fechar, 150))
+
+  wrapper.getValor   = () => hidden.dataset.valor
+  wrapper.getLabel   = () => input.value
+  wrapper.setErro    = () => input.classList.add('erro')
+  wrapper.limparErro = () => input.classList.remove('erro')
+  wrapper.resetar    = () => { input.value = ''; hidden.dataset.valor = ''; input.classList.remove('erro'); dropdown.classList.remove('aberto') }
+  wrapper.setItems   = novos => { lista = novos; wrapper.resetar() }
+  wrapper.focar      = () => input.focus()
+  wrapper.onSelect   = fn => { cbSelect = fn }
+  wrapper.onConfirm  = fn => { cbConfirm = fn }
+  // Preencher programaticamente sem acionar dropdown
+  wrapper.preencherValor = (value, label) => { hidden.dataset.valor = value; input.value = label; input.classList.remove('erro') }
+  return wrapper
+}
+
+// ─────────────────────────────────────────────────────────────
+// Base compartilhada — searchbox + btnAdd + lista de linhas
+// Recebe hooks para criar linha e reagir a remoção.
+// Retorna { container, lista, sb, btnAdd, itemPendente (ref) }
+// ─────────────────────────────────────────────────────────────
+function _criarCampoExamesBase({ itensIniciais, placeholder }) {
+  const container = document.createElement('div')
+  const lista     = document.createElement('div'); lista.className = 'exames-lista'
+  const sb        = criarSearchbox(itensIniciais, placeholder)
+
+  const btnAdd = document.createElement('button')
+  btnAdd.className = 'btn-add-exame'; btnAdd.textContent = '+ add'; btnAdd.disabled = true
+
+  // ref.itemPendente é lido/zerado pelos wrappers
+  const ref = { itemPendente: null }
+  sb.onSelect(item => { ref.itemPendente = item; btnAdd.disabled = false })
+
+  const addRow = document.createElement('div'); addRow.className = 'exame-add-row'
+  const inputRow = document.createElement('div'); inputRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start;flex:1'
+  const sbInput = sb.querySelector('input[type="text"]')
+  const sbDropdown = sb.querySelector('.search-dropdown')
+  inputRow.appendChild(sbInput); inputRow.appendChild(btnAdd)
+  sb.appendChild(inputRow); sb.appendChild(sbDropdown)
+  addRow.appendChild(sb)
+  container.appendChild(lista); container.appendChild(addRow)
+
+  container.setErro    = () => sb.setErro()
+  container.limparErro = () => sb.limparErro()
+
+  return { container, lista, sb, btnAdd, ref }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Campo de exames — card de clínicas (dados remotos via /exames)
+// Não depende do banco.json local.
+// atualizarClinica() busca os exames da clínica selecionada via fetch.
+//
+// tipoFiltro: 'lab' | 'clinica' — restringe o fallback local ao tipo
+// correto, impedindo que exames de clínicas apareçam no card de lab
+// e vice-versa. (Correção Bug #1)
+// ─────────────────────────────────────────────────────────────
+function criarCampoExamesClinica(onValorChange, tipoFiltro) {
+  let itensAtuais = []
+
+  const { container, lista, sb, btnAdd, ref } = _criarCampoExamesBase({
+    itensIniciais: [],
+    placeholder:   'selecione uma clínica primeiro...'
+  })
+  const selecionados = []
+
+  const atualizarItensSb = () => {
+    const pidsSelecionados = selecionados.map(s => s.pid)
+    sb.setItems(itensAtuais.filter(i => !pidsSelecionados.includes(i.value)))
+  }
+
+  const adicionarLinhaExame = (entry) => {
+    const row = document.createElement('div'); row.className = 'exame-row'
+    const ne = document.createElement('span'); ne.className = 'exame-row-nome'; ne.textContent = entry.nome; ne.title = entry.nome
+    const ve = document.createElement('span'); ve.className = 'exame-row-valor'; ve.textContent = formatarMoeda(entry.valor)
+    const qi = document.createElement('input'); qi.type = 'number'; qi.className = 'exame-row-qtde'; qi.value = 1; qi.min = 1; qi.max = 99
+    qi.addEventListener('change', () => { entry.qtde = Math.max(1, parseInt(qi.value) || 1); qi.value = entry.qtde; if (onValorChange) onValorChange() })
+    const br = document.createElement('button'); br.className = 'btn-rem'; br.textContent = '✕'; br.type = 'button'
+    br.addEventListener('click', () => {
+      selecionados.splice(selecionados.findIndex(s => s.pid === entry.pid), 1)
+      row.remove(); atualizarItensSb(); if (onValorChange) onValorChange()
+    })
+    row.appendChild(ne); row.appendChild(ve); row.appendChild(qi); row.appendChild(br)
+    lista.appendChild(row)
+  }
+
+  const adicionarExame = () => {
+    if (!ref.itemPendente) return
+    if (selecionados.find(s => s.pid === ref.itemPendente.value)) { sb.resetar(); ref.itemPendente = null; btnAdd.disabled = true; return }
+    const entry = { nome: ref.itemPendente.label, pid: ref.itemPendente.value, valor: ref.itemPendente.valor, qtde: 1 }
+    selecionados.push(entry); adicionarLinhaExame(entry); atualizarItensSb()
+    sb.resetar(); ref.itemPendente = null; btnAdd.disabled = true; sb.focar()
+    if (onValorChange) onValorChange()
+  }
+
+  btnAdd.addEventListener('click', adicionarExame)
+  sb.querySelector('input[type="text"]').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && ref.itemPendente) { e.preventDefault(); adicionarExame() }
+  })
+
+  container.getExames  = () => selecionados.map(s => ({ pid: Number(s.pid), qtde: s.qtde, valor: s.valor, nome: s.nome }))
+  container.getTotal   = () => selecionados.reduce((acc, s) => acc + (s.valor * s.qtde), 0)
+  container.temExames  = () => selecionados.length > 0
+
+  container.atualizarClinica = async (novaClinicaId) => {
+    selecionados.length = 0
+    lista.innerHTML = ''
+    itensAtuais = []
+    sb.querySelector('input[type="text"]').placeholder = 'carregando exames...'
+    sb.setItems([])
+    if (onValorChange) onValorChange()
+
+    if (!novaClinicaId) {
+      sb.querySelector('input[type="text"]').placeholder = 'selecione uma clínica primeiro...'
+      return
+    }
+
+    // Tenta buscar via IPC; se falhar, usa banco local como fallback
+    try {
+      const dados = await window.electronAPI.getExames(novaClinicaId, tipoFiltro || undefined)
+      itensAtuais = Object.entries(dados).map(([nome, info]) => ({
+        label: `${info.nome_real || nome} — ${formatarMoeda(info.valor)}`,
+        value: String(info.id),
+        valor: Number(info.valor)
+      }))
+      if (!itensAtuais.length) throw new Error('vazio')
+      sb.querySelector('input[type="text"]').placeholder = 'buscar exame...'
+      atualizarItensSb()
+    } catch (err) {
+      // Fallback: usa exames do banco.json local filtrados pela clínica.
+      // Bug #1 — verifica se o estabelecimento é do tipo esperado antes de carregar,
+      // evitando que exames de clínicas médicas apareçam no card de laboratório.
+      // Bug #2a — IDs comparados via String() para evitar falha string vs number.
+      if (banco && banco.exames) {
+        const clinicaInfo = banco.clinicas.find(c => String(c.id) === String(novaClinicaId))
+        if (tipoFiltro && (!clinicaInfo || clinicaInfo.tipo !== tipoFiltro)) {
+          sb.querySelector('input[type="text"]').placeholder = 'estabelecimento incompatível com este card'
+          return
+        }
+        itensAtuais = banco.exames
+          .map(exame => {
+            const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(novaClinicaId))
+            if (!entrada) return null
+            return {
+              label: `${exame.nome_real || exame.nome_parametro} — ${formatarMoeda(entrada.preco)}`,
+              value: String(entrada.id_exame_clinica),
+              valor: Number(entrada.preco)
+            }
+          })
+          .filter(Boolean)
+        sb.querySelector('input[type="text"]').placeholder = itensAtuais.length ? 'buscar exame...' : 'nenhum exame cadastrado'
+        atualizarItensSb()
+      } else {
+        sb.querySelector('input[type="text"]').placeholder = 'erro ao carregar exames'
+      }
+    }
+  }
+
+  container.preencherExames = (examesOrc) => {
+    selecionados.length = 0; lista.innerHTML = ''
+    for (const e of examesOrc) {
+      // Aceita dois formatos:
+      // (a) vindo do importar/orçamento: { nome_real, id_exame_clinica, preco }
+      // (b) vindo do snapshot (getExames): { pid, qtde, valor, nome? }
+      const pid   = e.id_exame_clinica != null ? String(e.id_exame_clinica) : String(e.pid)
+      const preco = e.preco != null ? Number(e.preco) : Number(e.valor)
+      const nome  = e.nome_real || e.nome || pid
+      const qtde  = e.qtde ?? 1
+      const entry = { nome, pid, valor: isNaN(preco) ? 0 : preco, qtde }
+      selecionados.push(entry); adicionarLinhaExame(entry)
+    }
+    atualizarItensSb(); if (onValorChange) onValorChange()
+  }
+
+  return container
+}
+
+// ─────────────────────────────────────────────────────────────
+// Campo de exames — orçamento (usa banco, sem qtde)
+// ─────────────────────────────────────────────────────────────
+function criarCampoExamesOrcamento() {
+  const todosItens = banco.exames
+    .filter(e => e.clinicas.some(c => {
+      const estab = banco.clinicas.find(cl => String(cl.id) === String(c.clinica_id))
+      return estab?.tipo === 'lab'
+    }))
+    .map(e => {
+      const primeiroLab = e.clinicas.find(c => {
+        const estab = banco.clinicas.find(cl => String(cl.id) === String(c.clinica_id))
+        return estab?.tipo === 'lab'
+      })
+      const primeiroPreco = primeiroLab?.preco ?? 0
+      return { label: e.nome_real + (primeiroPreco ? ` — ${formatarMoeda(primeiroPreco)}` : ''), value: e.nome_parametro }
+    })
+
+  const { container, lista, sb, btnAdd, ref } = _criarCampoExamesBase({
+    itensIniciais: todosItens,
+    placeholder:   'buscar exame no banco...'
+  })
+  const selecionados = []  // array de nome_parametro
+
+  const atualizarItens = () => sb.setItems(todosItens.filter(i => !selecionados.includes(i.value)))
+
+  const criarLinhaOrc = (nomeParam) => {
+    const row = document.createElement('div'); row.className = 'exame-row'
+    const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
+    const nomeExibido = exame?.nome_real || nomeParam
+    const ne  = document.createElement('span'); ne.className = 'exame-row-nome'; ne.textContent = nomeExibido; ne.title = nomeExibido
+    const primeiroLab = exame?.clinicas.find(c => {
+      const estab = banco.clinicas.find(cl => String(cl.id) === String(c.clinica_id))
+      return estab?.tipo === 'lab'
+    })
+    const preco = primeiroLab?.preco
+    const ve  = document.createElement('span'); ve.className = 'exame-row-valor'; ve.textContent = preco != null ? formatarMoeda(preco) : ''
+    const br  = document.createElement('button'); br.className = 'btn-rem'; br.textContent = '✕'; br.type = 'button'
+    br.addEventListener('click', () => { selecionados.splice(selecionados.indexOf(nomeParam), 1); row.remove(); atualizarItens() })
+    row.appendChild(ne); row.appendChild(ve); row.appendChild(br)
+    lista.appendChild(row)
+  }
+
+  const adicionarExame = () => {
+    if (!ref.itemPendente) return
+    if (selecionados.includes(ref.itemPendente.value)) { sb.resetar(); ref.itemPendente = null; btnAdd.disabled = true; return }
+    selecionados.push(ref.itemPendente.value)
+    atualizarItens(); criarLinhaOrc(ref.itemPendente.value)
+    sb.resetar(); ref.itemPendente = null; btnAdd.disabled = true; sb.focar()
+  }
+
+  btnAdd.addEventListener('click', adicionarExame)
+  sb.querySelector('input[type="text"]').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && ref.itemPendente) { e.preventDefault(); adicionarExame() }
+  })
+
+  container.getExames = () => [...selecionados]
+  container.temExames = () => selecionados.length > 0
+
+  container.limpar = () => {
+    selecionados.length = 0; lista.innerHTML = ''; atualizarItens()
+  }
+
+  container.restaurarExames = (nomes) => {
+    for (const nome of nomes) {
+      if (selecionados.includes(nome)) continue
+      if (!banco.exames.find(e => e.nome_parametro === nome)) continue
+      selecionados.push(nome); criarLinhaOrc(nome)
+    }
+    atualizarItens()
+  }
+
+  return container
+}
+
+// ─────────────────────────────────────────────────────────────
+// Bloco paciente — sem alteração
+// ─────────────────────────────────────────────────────────────
+function criarBlocoPaciente(onDadosObtidos) {
+  const wrap = document.createElement('div'); wrap.className = 'field full'
+  const lbl  = document.createElement('label'); lbl.textContent = 'Código do paciente'
+  const codRow = document.createElement('div'); codRow.className = 'codigo-row'
+  const inputCod = document.createElement('input'); inputCod.type = 'text'; inputCod.placeholder = 'ex: 239740'
+  const btnBuscar = document.createElement('button'); btnBuscar.className = 'btn-buscar'; btnBuscar.textContent = 'buscar'
+  const erroMsg = document.createElement('div'); erroMsg.className = 'erro-msg'
+  const infoBox = document.createElement('div'); infoBox.className = 'paciente-info'
+  let dadosPaciente = null
+  let _buscarController = null   // AbortController da última busca de paciente
+
+  const buscar = async () => {
+    const cod = inputCod.value.trim()
+    if (!cod) { erroMsg.textContent = 'informe o código'; return }
+    // Cancela busca anterior pendente antes de iniciar nova
+    if (_buscarController) _buscarController.abort()
+    _buscarController = new AbortController()
+    btnBuscar.textContent = '...'; btnBuscar.classList.add('loading'); erroMsg.textContent = ''
+    try {
+      const dados = await window.electronAPI.getPaciente(cod)
+      dadosPaciente = { ...dados, codigo: cod }
+      infoBox.innerHTML = ''
+      const linha    = document.createElement('div'); linha.className = 'paciente-info-linha'
+      const dadosDiv = document.createElement('div'); dadosDiv.className = 'paciente-info-dados'
+      dadosDiv.innerHTML = `
+        <span class="pi-nome">${escHTML(dados.nome)}</span>
+        <span class="pi-detail">CPF ${escHTML(dados.cpf)} · Nasc. ${formatarData(dados.datanasc)}</span>
+        <span class="pi-detail">Mãe: ${escHTML(dados.nomemae)}</span>
+        <span class="pi-detail">Cel: ${escHTML(dados.celular) || '—'}</span>`
+      const btnC = document.createElement('button'); btnC.className = 'btn-copiar'; btnC.textContent = 'copiar'
+      btnC.addEventListener('click', e => {
+        e.stopPropagation()
+        copiarParaClipboard(`Nome: ${dados.nome}\nCPF: ${dados.cpf}\nNasc: ${formatarData(dados.datanasc)}\nMãe: ${dados.nomemae}\nCel: ${dados.celular}`, btnC, 'copiar')
+      })
+      linha.appendChild(dadosDiv); linha.appendChild(btnC)
+      infoBox.appendChild(linha); infoBox.classList.add('visivel')
+      if (onDadosObtidos) onDadosObtidos(dados)
+    } catch (err) {
+      if (err.name === 'AbortError') return  // busca cancelada por nova digitação — ignorar
+      erroMsg.textContent = err.message; infoBox.classList.remove('visivel'); dadosPaciente = null
+    } finally {
+      btnBuscar.textContent = 'buscar'; btnBuscar.classList.remove('loading')
+    }
+  }
+
+  btnBuscar.addEventListener('click', buscar)
+  inputCod.addEventListener('keydown', e => { if (e.key === 'Enter') buscar() })
+  let _buscarTimer = null
+  inputCod.addEventListener('input', () => {
+    clearTimeout(_buscarTimer)
+    if (!inputCod.value.trim()) {
+      dadosPaciente = null
+      infoBox.classList.remove('visivel')
+      infoBox.innerHTML = ''
+      return
+    }
+    _buscarTimer = setTimeout(() => buscar(), 300)
+  })
+  codRow.appendChild(inputCod); codRow.appendChild(btnBuscar)
+  wrap.appendChild(lbl); wrap.appendChild(codRow); wrap.appendChild(erroMsg); wrap.appendChild(infoBox)
+
+  wrap.getCodigo  = () => inputCod.value.trim()
+  wrap.getDados   = () => dadosPaciente
+  wrap.getNome    = () => dadosPaciente?.nome || `paciente`
+  wrap.setErro    = () => { inputCod.classList.add('erro'); erroMsg.textContent = 'campo obrigatório' }
+  wrap.limparErro = () => { inputCod.classList.remove('erro'); erroMsg.textContent = '' }
+  wrap.resetar    = () => {
+    inputCod.value = ''
+    dadosPaciente  = null
+    erroMsg.textContent = ''
+    inputCod.classList.remove('erro')
+    infoBox.classList.remove('visivel')
+    infoBox.innerHTML = ''
+  }
+  return wrap
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARD LABORATÓRIO — toggle agendar / orçamento
+//
+// MUDANÇAS EM RELAÇÃO AO ORIGINAL:
+//   • cardId único para localStorage
+//   • criarCampoExamesClinica busca exames remotos via fetch ao selecionar clínica
+//   • Alerta visual de indisponíveis ao transicionar para modo agendar
+//   • renderizarOrcamento recebe callback onAgendar para transição
+//   • Estado do orçamento (exames + clinica + resultado) preservado ao
+//     trocar de modo, e salvo/restaurado do localStorage
+// ─────────────────────────────────────────────────────────────
+function adicionarCardLab() {
+  contadorLab++
+  const lista = document.getElementById('listaLab')
+
+  // Apenas um card por coluna — limpa anterior e desconecta observers se houver
+  const cardAnteriorLab = lista.querySelector('.card')
+  if (cardAnteriorLab?._desconectarObservers) cardAnteriorLab._desconectarObservers()
+  lista.innerHTML = ''
+
+  const card  = document.createElement('div'); card.className = 'card'
+
+  // Top bar
+  const top = document.createElement('div'); top.className = 'card-top'
+  const btnSalvarFila = document.createElement('button'); btnSalvarFila.className = 'btn-salvar-fila'; btnSalvarFila.textContent = '＋ Salvar na Fila'
+  const btnSalvarAlteracoes = document.createElement('button')
+  btnSalvarAlteracoes.className = 'btn-salvar-fila salvo'
+  btnSalvarAlteracoes.textContent = '✓ salvar alterações'
+  btnSalvarAlteracoes.style.display = 'none'
+  const btnCancelarEdicao = document.createElement('button')
+  btnCancelarEdicao.className = 'btn-rem'
+  btnCancelarEdicao.textContent = '✕ cancelar edição'
+  btnCancelarEdicao.style.display = 'none'
+  btnSalvarFila.addEventListener('click', e => {
+    e.stopPropagation()
+
+    const listaPendentes = document.getElementById('listaPendentes')
+    // I1 — detectar se card já está na fila (modo atualizar vs salvar)
+    const miniAtivo = [...listaPendentes.querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+
+    // Validação completa: todos os campos obrigatórios devem estar preenchidos para salvar na fila
+    const temConteudo = modoAtual === 'agendar'
+      ? (blocoPaciente.getCodigo() && sbClinica.getValor() &&
+         campoExamesAgendar.temExames() && inputData.value && inputHorario.value)
+      : campoExamesOrc.temExames()
+    if (!temConteudo) {
+      // Marcar campos faltantes visualmente (apenas modo agendar)
+      if (modoAtual === 'agendar') {
+        if (!blocoPaciente.getCodigo()) blocoPaciente.setErro()
+        if (!sbClinica.getValor()) erroClin.textContent = 'laboratório obrigatório'
+        if (!campoExamesAgendar.temExames()) erroExA.textContent = 'adicione ao menos um exame'
+        if (!inputData.value) calHorLab.setErroData()
+        if (!inputHorario.value) calHorLab.setErroHorario()
+        setTimeout(() => {
+          blocoPaciente.limparErro()
+          erroClin.textContent = ''
+          erroExA.textContent = ''
+          calHorLab.limparErroData()
+          calHorLab.limparErroHorario()
+        }, 2500)
+      } else {
+        erroExO.textContent = 'adicione ao menos um exame'
+        setTimeout(() => { erroExO.textContent = '' }, 2500)
+      }
+      // Shake + texto de erro no botão
+      btnSalvarFila.textContent = '⚠ preencha os campos'
+      btnSalvarFila.classList.add('erro-shake')
+      setTimeout(() => {
+        btnSalvarFila.classList.remove('erro-shake')
+        btnSalvarFila.textContent = miniAtivo ? '✎ Atualizar na fila' : '＋ Salvar na Fila'
+      }, 2000)
+      return
+    }
+
+    // I2 — nome com placeholder se sem paciente
+    const nomePac = blocoPaciente?.getCodigo()
+      ? blocoPaciente.getNome()
+      : '⚠ sem paciente'
+
+    let valorAtual
+    if (modoAtual === 'orcamento') {
+      const total = totalOrcamento()
+      const count = campoExamesOrc.getExames().length
+      const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
+      valorAtual = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
+    } else {
+      valorAtual = valorSpan ? valorSpan.textContent : 'R$ 0,00'
+    }
+
+    const labLabel = sbClinica ? sbClinica.getLabel() : ''
+
+    if (miniAtivo) {
+      // I1 — modo atualizar: reescrever mini-card in-place
+      miniAtivo._nome         = nomePac
+      miniAtivo._valor        = valorAtual
+      miniAtivo._labelClinica = labLabel
+      miniAtivo.classList.toggle('mc-sem-paciente', nomePac === '⚠ sem paciente')
+      if (miniAtivo._rebuild) miniAtivo._rebuild()
+      atualizarRodapePainel()
+      btnSalvarFila.textContent = '✓ Atualizado'
+      btnSalvarFila.classList.add('salvo')
+      setTimeout(() => { btnSalvarFila.textContent = '✎ Atualizar na fila'; btnSalvarFila.classList.remove('salvo') }, 2000)
+    } else {
+      // modo salvar novo — adiciona à fila e cria card vazio automaticamente
+      adicionarNaFila(card, nomePac, 'lab', valorAtual, labLabel, _capturarSnapshot(), modoAtual)
+      document.getElementById('statusGlobal').innerHTML = '<span class="ok">salvo na fila</span>'
+      setTimeout(() => { document.getElementById('statusGlobal').innerHTML = '' }, 1500)
+      // Feedback no botão antes de destruir o card
+      btnSalvarFila.textContent = '✓ Adicionado!'
+      btnSalvarFila.classList.add('salvo')
+      // Pulso no painel lateral para direcionar o olhar
+      const painel = document.getElementById('painelPendentes')
+      painel.classList.remove('novo-item')
+      void painel.offsetWidth  // reflow para reiniciar a animação
+      painel.classList.add('novo-item')
+      setTimeout(() => painel.classList.remove('novo-item'), 700)
+      setTimeout(() => {
+        adicionarCardLab()
+        requestAnimationFrame(() => {
+          const inputFoco = document.querySelector('#listaLab .card input[type="text"]')
+          if (inputFoco) inputFoco.focus()
+        })
+      }, 400)
+    }
+  })
+  const info     = document.createElement('div'); info.className = 'card-info'
+  const nomeSpan = document.createElement('div'); nomeSpan.className = 'card-nome vazio'; nomeSpan.textContent = `lab #${contadorLab}`
+  const metaSpan = document.createElement('div'); metaSpan.className = 'card-meta'
+  const resumoDiv = document.createElement('div'); resumoDiv.className = 'card-resumo'
+  const resumoNome = document.createElement('div'); resumoNome.className = 'card-resumo-nome'
+  const resumoClinica = document.createElement('div'); resumoClinica.className = 'card-resumo-clinica'
+  const resumoValor = document.createElement('div'); resumoValor.className = 'card-resumo-valor'
+  const resumoTel = document.createElement('div'); resumoTel.className = 'card-resumo-tel'
+  resumoDiv.appendChild(resumoNome); resumoDiv.appendChild(resumoClinica); resumoDiv.appendChild(resumoValor); resumoDiv.appendChild(resumoTel)
+  info.appendChild(nomeSpan); info.appendChild(metaSpan); info.appendChild(resumoDiv)
+  const atualizarResumo = () => {
+    const d = blocoPaciente ? blocoPaciente.getDados() : null
+    resumoNome.textContent = d?.nome || nomeSpan.textContent
+    resumoTel.textContent = d?.celular ? `Cel: ${d.celular}` : ''
+    resumoClinica.textContent = sbClinica ? (sbClinica.getLabel() || '') : ''
+    resumoValor.textContent = valorSpan ? valorSpan.textContent : ''
+  }
+  const valorSpan = document.createElement('div'); valorSpan.className = 'card-valor zero'; valorSpan.textContent = 'R$ 0,00'
+  const actionsDiv = document.createElement('div'); actionsDiv.className = 'card-actions'
+  const btnRem = document.createElement('button'); btnRem.className = 'btn-rem'; btnRem.title = 'Novo agendamento (limpar)'; btnRem.textContent = '↺ novo'
+  btnRem.addEventListener('click', e => {
+    e.stopPropagation()
+    // Se houver edição de fila em andamento neste card, cancela ela antes
+    // de destruir, para não deixar o mini-card preso em mc-em-edicao
+    if (card._modoEdicao && card._miniEmEdicao) {
+      const miniEd = card._miniEmEdicao
+      miniEd._marcado = miniEd._marcadoAntes ?? true
+      miniEd.classList.toggle('marcado', miniEd._marcado)
+      miniEd.classList.remove('mc-em-edicao')
+      if (miniEd._rebuild) miniEd._rebuild()
+      atualizarRodapePainel()
+      card._modoEdicao = false
+      card._miniEmEdicao = null
+      _edicaoEmAndamento = false
+      _restaurarTabs()
+    }
+    // I6 — verificar se card tem dados antes de destruir
+    const temDados = (modoAtual === 'agendar')
+      ? (sbClinica.getValor() || campoExamesAgendar.temExames())
+      : campoExamesOrc.temExames()
+    if (!temDados) {
+      adicionarCardLab()
+      return
+    }
+    // confirmação inline
+    btnRem.style.display = 'none'
+    const confirmDiv = document.createElement('span'); confirmDiv.className = 'btn-confirm-novo'
+    confirmDiv.innerHTML = '<span style="font-size:.58rem;color:var(--warn);margin-right:.3rem">perderá os dados</span>'
+    const btnOk  = document.createElement('button'); btnOk.className  = 'btn-rem'; btnOk.textContent = '✓'; btnOk.title = 'Confirmar'
+    const btnCan = document.createElement('button'); btnCan.className = 'btn-rem'; btnCan.textContent = '✕'; btnCan.title = 'Cancelar'
+    confirmDiv.appendChild(btnOk); confirmDiv.appendChild(btnCan)
+    actionsDiv.insertBefore(confirmDiv, collapseBtn)
+    const cancelar = () => { confirmDiv.remove(); btnRem.style.display = '' }
+    const timer = setTimeout(cancelar, 6000)
+    btnOk.addEventListener('click', ev => { ev.stopPropagation(); clearTimeout(timer); adicionarCardLab() })
+    btnCan.addEventListener('click', ev => { ev.stopPropagation(); clearTimeout(timer); cancelar() })
+  })
+  const collapseBtn = document.createElement('span'); collapseBtn.className = 'btn-icon card-collapse'; collapseBtn.textContent = '▾'; collapseBtn.style.cursor = 'pointer'
+  actionsDiv.appendChild(btnRem); actionsDiv.appendChild(collapseBtn)
+  top.appendChild(btnSalvarFila); top.appendChild(btnSalvarAlteracoes); top.appendChild(btnCancelarEdicao); top.appendChild(info); top.appendChild(valorSpan); top.appendChild(actionsDiv)
+  top.addEventListener('click', () => { card.classList.toggle('fechado'); atualizarResumo() })
+
+  // Body
+  const body = document.createElement('div'); body.className = 'card-body'
+
+  // Toggle
+  const toggle      = document.createElement('div'); toggle.className = 'modo-toggle'
+  const btnAgendar  = document.createElement('button'); btnAgendar.className  = 'modo-btn ativo'; btnAgendar.textContent = 'agendar'
+  const btnOrcamento = document.createElement('button'); btnOrcamento.className = 'modo-btn'; btnOrcamento.textContent = 'orçamento'
+  const btnLimparPaciente = document.createElement('button'); btnLimparPaciente.className = 'modo-btn'; btnLimparPaciente.textContent = '✕ paciente'
+  btnLimparPaciente.style.cssText = 'color: var(--danger); margin-left: auto; border-left: 1px solid var(--border);'
+  const btnLimparLab = document.createElement('button'); btnLimparLab.className = 'modo-btn'; btnLimparLab.textContent = '✕ lab/exames'
+  btnLimparLab.style.cssText = 'color: var(--danger); border-left: 1px solid var(--border);'
+  toggle.appendChild(btnAgendar); toggle.appendChild(btnOrcamento); toggle.appendChild(btnLimparPaciente); toggle.appendChild(btnLimparLab)
+
+  // Bloco paciente compartilhado
+  const blocoPaciente = criarBlocoPaciente(dados => {
+    nomeSpan.textContent = dados.nome; nomeSpan.classList.remove('vazio')
+    metaSpan.innerHTML = `<span>${dados.cpf}</span><span class="tag">${dados.celular || 'sem cel'}</span>`
+    atualizarResumo()
+    if (card._sincronizarMiniCard) card._sincronizarMiniCard()
+  })
+
+  // ── SEÇÃO AGENDAR ────────────────────────────────────────
+  const secaoAgendar = document.createElement('div'); secaoAgendar.className = 'secao-agendar'
+
+  const gridCampos = document.createElement('div'); gridCampos.className = 'grid'
+
+  const fieldClinica = document.createElement('div'); fieldClinica.className = 'field full'
+  const lblClin = document.createElement('label'); lblClin.textContent = 'Clínica / Laboratório'
+  const sbClinica = criarSearchbox(laboratorios.map(c => ({ value: c.id, label: c.nome })), 'buscar laboratório...')
+  const erroClin = document.createElement('div'); erroClin.className = 'erro-msg'
+  fieldClinica.appendChild(lblClin); fieldClinica.appendChild(sbClinica); fieldClinica.appendChild(erroClin)
+
+  const calHorLab = criarCalendarioHorario()
+  const calWrapLab = calHorLab.wrapper
+
+  // Compat shim para o código existente que usa inputData / inputHorario
+  const inputData = {
+    get value() { return calHorLab.getValue().data },
+    set value(_) { calHorLab.resetar() },
+    classList: { add(c) { if(c==='erro') calHorLab.setErroData() }, remove(c) { if(c==='erro') calHorLab.limparErroData() } }
+  }
+  const inputHorario = {
+    get value() { return calHorLab.getValue().horario },
+    set value(v) { if (!v) { const inp = calHorLab.wrapper.querySelector('.cal-horario-input'); if (inp) inp.value = '' } },
+    classList: { add(c) { if(c==='erro') calHorLab.setErroHorario() }, remove(c) { if(c==='erro') calHorLab.limparErroHorario() } }
+  }
+
+  gridCampos.appendChild(fieldClinica); gridCampos.appendChild(calWrapLab)
+
+  const atualizarValorHeader = () => atualizarValorSpan()
+
+  // Campo exames ciente da clínica — sem clinicaId inicial.
+  // tipoFiltro='lab' garante que o fallback local nunca carregue exames de clínicas médicas. (Bug #1)
+  const campoExamesAgendar = criarCampoExamesClinica(atualizarValorHeader, 'lab')
+
+  // Quando a clínica de agendamento muda, recarrega os itens do searchbox de exames
+  // e exibe o botão de importar orçamento
+  const atualizarBtnImportar = () => {
+    const temExames = campoExamesOrc.temExames()
+    btnImportarOrc.disabled = !temExames
+    btnImportarOrc.style.opacity = temExames ? '1' : '0.4'
+    btnImportarOrc.style.pointerEvents = temExames ? '' : 'none'
+  }
+
+  sbClinica.onSelect(item => {
+    atualizarResumo()
+  })
+  sbClinica.onConfirm(item => {
+    campoExamesAgendar.atualizarClinica(item.value)
+    atualizarResumo()
+    alertaIndisp.classList.remove('visivel')
+    btnImportarOrc.style.display = ''
+    atualizarBtnImportar()
+    btnImportarOrc.dataset.clinicaId = item.value
+  })
+
+  const fieldExA = document.createElement('div'); fieldExA.className = 'field full'
+  const lblExA   = document.createElement('label'); lblExA.textContent = 'Exames'
+  const erroExA  = document.createElement('div'); erroExA.className = 'erro-msg'
+  fieldExA.appendChild(lblExA); fieldExA.appendChild(campoExamesAgendar); fieldExA.appendChild(erroExA)
+
+  // Botão importar orçamento — aparece após clínica selecionada
+  const btnImportarOrc = document.createElement('button')
+  btnImportarOrc.className = 'btn-add-clinica'
+  btnImportarOrc.textContent = '↓ importar exames do orçamento'
+  btnImportarOrc.style.display = 'none'
+  btnImportarOrc.addEventListener('click', () => {
+    const clinicaId = btnImportarOrc.dataset.clinicaId
+    const examesOrc = campoExamesOrc.getExames()
+    if (!examesOrc.length) {
+      erroExO.textContent = 'adicione ao menos um exame ao orçamento antes de importar'
+      setTimeout(() => { erroExO.textContent = '' }, 3000)
+      return
+    }
+
+    // Cruza exames do orçamento com o catálogo da clínica selecionada
+    const disponiveis   = []
+    const indisponiveis = []
+    for (const nomeParam of examesOrc) {
+      const exame   = banco.exames.find(e => e.nome_parametro === nomeParam)
+      const entrada = exame?.clinicas.find(c => String(c.clinica_id) === String(clinicaId))  // Bug #2a
+      if (entrada) {
+        disponiveis.push({ nome_real: exame.nome_real, id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco })
+      } else {
+        indisponiveis.push(nomeParam)
+      }
+    }
+
+    campoExamesAgendar.preencherExames(disponiveis)
+
+    if (indisponiveis.length) {
+      alertaIndisp.textContent = `⚠️ não disponíveis nesta clínica: ${indisponiveis.join(', ')}`
+      alertaIndisp.classList.add('visivel')
+    } else {
+      alertaIndisp.classList.remove('visivel')
+    }
+  })
+
+  // Alerta de exames indisponíveis
+  const alertaIndisp = document.createElement('div'); alertaIndisp.className = 'alerta-indisp'
+
+  const statusDiv = document.createElement('div'); statusDiv.className = 'card-status'
+
+  secaoAgendar.appendChild(gridCampos); secaoAgendar.appendChild(btnImportarOrc)
+  secaoAgendar.appendChild(fieldExA)
+  secaoAgendar.appendChild(alertaIndisp); secaoAgendar.appendChild(statusDiv)
+
+  // ── SEÇÃO ORÇAMENTO ──────────────────────────────────────
+  const secaoOrcamento = document.createElement('div')
+  secaoOrcamento.className = 'secao-orcamento'
+  secaoOrcamento.style.display = 'none'
+
+  // Searchbox clínica orçamento com opção "Todos"
+  const fieldClinicaOrc = document.createElement('div'); fieldClinicaOrc.className = 'field full'
+  const lblClinOrc = document.createElement('label'); lblClinOrc.textContent = 'Laboratório'
+  const itensClinicasOrc = [
+    { value: '__todos__', label: '★ Todos os laboratórios', especial: true },
+    ...laboratorios.map(c => ({ value: c.id, label: c.nome }))
+  ]
+  const sbClinicaOrc = criarSearchbox(itensClinicasOrc, 'todos ou escolha um...')
+  // Pré-seleciona "Todos"
+  sbClinicaOrc.querySelector('input[type="hidden"]').dataset.valor = '__todos__'
+  sbClinicaOrc.querySelector('input[type="text"]').value = '★ Todos os laboratórios'
+  const erroClinicaOrc = document.createElement('div'); erroClinicaOrc.className = 'erro-msg'
+  fieldClinicaOrc.appendChild(lblClinOrc); fieldClinicaOrc.appendChild(sbClinicaOrc); fieldClinicaOrc.appendChild(erroClinicaOrc)
+
+  // Campo exames orçamento
+  const fieldExO = document.createElement('div'); fieldExO.className = 'field full'
+  const lblExO   = document.createElement('label'); lblExO.textContent = 'Exames'
+  const campoExamesOrc = criarCampoExamesOrcamento()
+  const erroExO  = document.createElement('div'); erroExO.className = 'erro-msg'
+  fieldExO.appendChild(lblExO); fieldExO.appendChild(campoExamesOrc); fieldExO.appendChild(erroExO)
+
+  const listaOrcObserver = new MutationObserver(() => { atualizarValorSpan(); atualizarBtnImportar() })
+  listaOrcObserver.observe(campoExamesOrc.querySelector('.exames-lista'), { childList: true })
+  // Registra função de limpeza para ser chamada antes de destruir o card
+  card._desconectarObservers = () => listaOrcObserver.disconnect()
+
+  const btnGerarOrc = document.createElement('button')
+  btnGerarOrc.className = 'btn-gerar-orc'; btnGerarOrc.textContent = 'Gerar orçamento'
+
+  const resultadoOrc = document.createElement('div'); resultadoOrc.className = 'orc-resultado'
+
+  btnGerarOrc.addEventListener('click', () => {
+    erroExO.textContent = ''
+    if (!campoExamesOrc.temExames()) { erroExO.textContent = 'adicione ao menos um exame'; return }
+    const filtroId     = sbClinicaOrc.getValor() === '__todos__' ? null : sbClinicaOrc.getValor()
+    const nomePaciente = blocoPaciente.getNome()
+    const orcamento    = calcularOrcamento(campoExamesOrc.getExames(), filtroId, laboratorios)
+    renderizarOrcamento(resultadoOrc, orcamento, nomePaciente)
+    card.classList.add('orcando')
+    atualizarValorSpan()
+  })
+
+  secaoOrcamento.appendChild(btnGerarOrc)
+  secaoOrcamento.appendChild(fieldClinicaOrc)
+  secaoOrcamento.appendChild(fieldExO)
+  secaoOrcamento.appendChild(resultadoOrc)
+
+  // Calcula o total do orçamento a partir dos exames selecionados no campoExamesOrc
+  // usando o primeiro preço disponível no banco (mesmo critério do fallback)
+  const totalOrcamento = () => {
+    return campoExamesOrc.getExames().reduce((acc, nomeParam) => {
+      const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
+      return acc + (exame?.clinicas[0]?.preco ?? 0)
+    }, 0)
+  }
+
+  const atualizarValorSpan = () => {
+    atualizarResumo()
+    if (modoAtual === 'agendar') {
+      const total  = campoExamesAgendar.getTotal()
+      const count  = campoExamesAgendar.getExames().length
+      const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
+      valorSpan.textContent = formatarMoeda(total) + sufixo
+      valorSpan.classList.toggle('zero', total === 0)
+    } else {
+      const total = totalOrcamento()
+      const count = campoExamesOrc.getExames().length
+      const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
+      valorSpan.textContent = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
+      valorSpan.classList.toggle('zero', total === 0)
+    }
+  }
+
+  // ── Toggle entre modos (preserva estado ao trocar) ───────
+  let modoAtual = 'agendar'
+  btnAgendar.addEventListener('click', e => {
+    e.stopPropagation(); modoAtual = 'agendar'
+    btnAgendar.classList.add('ativo'); btnOrcamento.classList.remove('ativo')
+    secaoAgendar.style.display = ''; secaoOrcamento.style.display = 'none'
+    valorSpan.style.display = ''; card.classList.remove('orcando')
+    atualizarValorSpan(); atualizarBotoesLimpar()
+  })
+  btnOrcamento.addEventListener('click', e => {
+    e.stopPropagation(); modoAtual = 'orcamento'
+    btnOrcamento.classList.add('ativo'); btnAgendar.classList.remove('ativo')
+    secaoAgendar.style.display = 'none'; secaoOrcamento.style.display = 'flex'
+    secaoOrcamento.style.flexDirection = 'column'; secaoOrcamento.style.gap = '.85rem'
+    valorSpan.style.display = ''
+    atualizarValorSpan(); atualizarBotoesLimpar()
+  })
+  btnLimparPaciente.addEventListener('click', e => {
+    e.stopPropagation()
+    blocoPaciente.resetar()
+    nomeSpan.textContent = `lab #${contadorLab}`
+    nomeSpan.classList.add('vazio')
+    metaSpan.innerHTML = ''
+    atualizarValorSpan()
+  })
+  btnLimparLab.addEventListener('click', e => {
+    e.stopPropagation()
+    if (modoAtual === 'agendar') {
+      sbClinica.resetar()
+      calHorLab.resetar()
+      campoExamesAgendar.atualizarClinica(null)
+      alertaIndisp.classList.remove('visivel')
+      btnImportarOrc.style.display = 'none'
+    } else {
+      campoExamesOrc.limpar()
+      atualizarBtnImportar()
+      resultadoOrc.innerHTML = ''
+      card.classList.remove('orcando')
+    }
+    atualizarValorSpan()
+  })
+  // ocultar botões de limpar no modo orçamento (só fazem sentido no agendar)
+  const atualizarBotoesLimpar = () => {
+    const isAgendar = modoAtual === 'agendar'
+    btnLimparPaciente.style.display = isAgendar ? '' : 'none'
+    btnLimparLab.style.display      = ''
+  }
+
+  body.appendChild(toggle)
+  body.appendChild(blocoPaciente)
+  body.appendChild(secaoAgendar)
+  body.appendChild(secaoOrcamento)
+
+  card.appendChild(top); card.appendChild(body)
+  lista.appendChild(card); atualizarCountColunas()
+  card.classList.add('entrando'); setTimeout(() => card.classList.remove('entrando'), 300)
+
+  card._tipo     = 'lab'
+  card._getCheck = () => false
+  card._modoEdicao   = false
+  card._miniEmEdicao = null
+  card._setModo = (modo) => {
+    if (modo === 'orcamento') btnOrcamento.click()
+    else btnAgendar.click()
+  }
+  card._atualizarResumo = atualizarResumo
+
+  // Função interna: captura snapshot do estado atual do card lab
+  const _capturarSnapshot = () => {
+    if (modoAtual === 'agendar') {
+      return {
+        modo: 'agendar',
+        pacienteCodigo: blocoPaciente.getCodigo(),
+        clinicaId:    sbClinica.getValor(),
+        clinicaLabel: sbClinica.getLabel(),
+        exames:       campoExamesAgendar.getExames(),
+        data:         calHorLab.getValue().data,
+        horario:      calHorLab.getValue().horario
+      }
+    } else {
+      return {
+        modo: 'orcamento',
+        pacienteCodigo: blocoPaciente.getCodigo(),
+        clinicaOrcId:    sbClinicaOrc.getValor(),
+        clinicaOrcLabel: sbClinicaOrc.getLabel(),
+        examesOrc:       campoExamesOrc.getExames()
+      }
+    }
+  }
+
+  // Alterna UI entre modo normal e modo edição
+  const _atualizarUiEdicao = () => {
+    if (card._modoEdicao) {
+      card.classList.add('card-em-edicao')
+      btnSalvarFila.style.display = 'none'
+      btnSalvarAlteracoes.style.display = ''
+      btnCancelarEdicao.style.display   = ''
+    } else {
+      card.classList.remove('card-em-edicao')
+      btnSalvarFila.style.display = ''
+      btnSalvarAlteracoes.style.display = 'none'
+      btnCancelarEdicao.style.display   = 'none'
+    }
+  }
+
+  // Inicia edição: restaura estado do snapshot e entra em modo edição
+  card._iniciarEdicao = async (mini) => {
+    const snap = mini._snapshot
+    if (!snap) return
+
+    // Se card foi destruído pelo reset automático pós-salvamento, recriar e redirecionar
+    if (!document.contains(card)) {
+      adicionarCardLab()
+      const novoCard = document.querySelector('#listaLab .card')
+      mini._cardRef = novoCard
+      await novoCard._iniciarEdicao(mini)
+      return
+    }
+
+    // (1) Restaurar modo
+    card._setModo(snap.modo)
+
+    // (2) Restaurar paciente
+    if (snap.pacienteCodigo) {
+      const inputCod = blocoPaciente.querySelector('input[type="text"]')
+      if (inputCod) {
+        inputCod.value = snap.pacienteCodigo
+        inputCod.dispatchEvent(new Event('input'))
+      }
+    }
+
+    // (3a) Restaurar modo agendar
+    if (snap.modo === 'agendar') {
+      if (snap.clinicaId) {
+        sbClinica.preencherValor(snap.clinicaId, snap.clinicaLabel)
+        await campoExamesAgendar.atualizarClinica(snap.clinicaId)
+        btnImportarOrc.style.display = ''
+        btnImportarOrc.dataset.clinicaId = snap.clinicaId
+      }
+      if (snap.exames?.length) campoExamesAgendar.preencherExames(snap.exames)
+      if (snap.data || snap.horario) calHorLab.setValue(snap.data, snap.horario)
+    }
+
+    // (3b) Restaurar modo orçamento
+    if (snap.modo === 'orcamento') {
+      if (snap.clinicaOrcId && snap.clinicaOrcId !== '__todos__') {
+        sbClinicaOrc.preencherValor(snap.clinicaOrcId, snap.clinicaOrcLabel)
+      }
+      if (snap.examesOrc?.length) campoExamesOrc.restaurarExames(snap.examesOrc)
+    }
+
+    // (4) Entrar em modo edição visual no card
+    card._modoEdicao = true
+    card._miniEmEdicao = mini
+    _atualizarUiEdicao()
+  }
+
+  // Salvar alterações: atualiza snapshot e mini-card, sai do modo edição
+  btnSalvarAlteracoes.addEventListener('click', e => {
+    e.stopPropagation()
+    const mini = card._miniEmEdicao
+    if (!mini) return
+
+    const novoSnap = _capturarSnapshot()
+    mini._snapshot = novoSnap
+
+    const nomePac = blocoPaciente?.getCodigo()
+      ? blocoPaciente.getNome() : '⚠ sem paciente'
+    let valorAtual
+    if (modoAtual === 'orcamento') {
+      const total = totalOrcamento()
+      const count = campoExamesOrc.getExames().length
+      const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
+      valorAtual = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
+    } else {
+      valorAtual = valorSpan ? valorSpan.textContent : 'R$ 0,00'
+    }
+    const labLabel = modoAtual === 'orcamento' ? '' : (sbClinica ? sbClinica.getLabel() : '')
+
+    mini._nome         = nomePac
+    mini._valor        = valorAtual
+    mini._labelClinica = labLabel
+    mini._modoCard     = modoAtual
+    mini.classList.toggle('mc-sem-paciente', nomePac === '⚠ sem paciente')
+
+    mini._marcado = mini._marcadoAntes ?? true
+    mini.classList.toggle('marcado', mini._marcado)
+    mini.classList.remove('mc-em-edicao')
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+
+    card._modoEdicao = false
+    card._miniEmEdicao = null
+    _atualizarUiEdicao()
+    _edicaoEmAndamento = false
+    _restaurarTabs()
+    adicionarCardLab()
+    requestAnimationFrame(() => {
+      const inputFoco = document.querySelector('#listaLab .card input[type="text"]')
+      if (inputFoco) inputFoco.focus()
+    })
+  })
+
+  // Cancelar edição: sai do modo edição e apresenta card vazio
+  btnCancelarEdicao.addEventListener('click', e => {
+    e.stopPropagation()
+    const mini = card._miniEmEdicao
+    if (!mini) return
+
+    mini._marcado = mini._marcadoAntes ?? true
+    mini.classList.toggle('marcado', mini._marcado)
+    mini.classList.remove('mc-em-edicao')
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+
+    card._modoEdicao = false
+    card._miniEmEdicao = null
+    _atualizarUiEdicao()
+    _edicaoEmAndamento = false
+    _restaurarTabs()
+    adicionarCardLab()
+    requestAnimationFrame(() => {
+      const inputFoco = document.querySelector('#listaLab .card input[type="text"]')
+      if (inputFoco) inputFoco.focus()
+    })
+  })
+  // I3 — sincroniza nome e indicador do mini-card quando paciente é preenchido
+  card._sincronizarMiniCard = () => {
+    const mini = [...document.getElementById('listaPendentes')
+      .querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+    if (!mini) return
+    const temCodigo = blocoPaciente.getCodigo()
+    mini._nome = temCodigo ? blocoPaciente.getNome() : '⚠ sem paciente'
+    mini.classList.toggle('mc-sem-paciente', !temCodigo)
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+  }
+  // I1 — atualiza label do botão conforme estado da fila
+  card._atualizarBtnFila = () => {
+    const mini = [...document.getElementById('listaPendentes')
+      .querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+    btnSalvarFila.textContent = mini ? '✎ Atualizar na fila' : '＋ Salvar na Fila'
+  }
+  card._getDados = () => {
+    if (modoAtual !== 'agendar') return null
+    const erros = []
+    if (!blocoPaciente.getCodigo()) { blocoPaciente.setErro(); erros.push('codigo') } else blocoPaciente.limparErro()
+    if (!sbClinica.getValor())      { sbClinica.setErro();     erros.push('clinica') } else sbClinica.limparErro()
+    if (!inputData.value)           { inputData.classList.add('erro');    erros.push('data')    } else inputData.classList.remove('erro')
+    if (!inputHorario.value)        { inputHorario.classList.add('erro'); erros.push('horario') } else inputHorario.classList.remove('erro')
+    if (!campoExamesAgendar.temExames()) { campoExamesAgendar.setErro(); erros.push('exames') } else campoExamesAgendar.limparErro()
+    if (erros.length) return false
+    return [{ codigoPaciente: blocoPaciente.getCodigo(), cpfPaciente: blocoPaciente.getDados()?.cpf || null, datanascPaciente: blocoPaciente.getDados()?.datanasc || null, codigoClinica: sbClinica.getValor(), exames: campoExamesAgendar.getExames(), data: inputData.value, horario: inputHorario.value, tipoCard: 'lab' }]
+  }
+  card._setStatus = (tipo, msg) => {
+    statusDiv.textContent = msg; statusDiv.className = `card-status visivel ${tipo}`
+    card.classList.toggle('processado', tipo === 'ok'); card.classList.toggle('erro', tipo === 'erro')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARD CLÍNICAS MÉDICAS — sem alteração
+// ─────────────────────────────────────────────────────────────
+function adicionarCardClinica() {
+  contadorClinicas++
+  const lista = document.getElementById('listaClinicas'), subcards = []
+
+  // Apenas um card por coluna — limpa anterior
+  lista.innerHTML = ''
+
+  const card  = document.createElement('div'); card.className = 'card'
+
+  const top = document.createElement('div'); top.className = 'card-top'
+  const btnSalvarFila = document.createElement('button'); btnSalvarFila.className = 'btn-salvar-fila'; btnSalvarFila.textContent = '＋ Salvar na Fila'
+  const btnSalvarAlteracoesClin = document.createElement('button')
+  btnSalvarAlteracoesClin.className = 'btn-salvar-fila salvo'
+  btnSalvarAlteracoesClin.textContent = '✓ salvar alterações'
+  btnSalvarAlteracoesClin.style.display = 'none'
+  const btnCancelarEdicaoClin = document.createElement('button')
+  btnCancelarEdicaoClin.className = 'btn-rem'
+  btnCancelarEdicaoClin.textContent = '✕ cancelar edição'
+  btnCancelarEdicaoClin.style.display = 'none'
+  btnSalvarFila.addEventListener('click', e => {
+    e.stopPropagation()
+    // I1 — detectar modo atualizar vs salvar
+    const listaPendentes = document.getElementById('listaPendentes')
+    const miniAtivo = [...listaPendentes.querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+    // Validação mínima: paciente e clínica obrigatórios; exames, data e horário opcionais ao salvar
+    const temConteudo = _blocoPacienteClin?.getCodigo() &&
+      subcards.length > 0 &&
+      subcards.every(sc => sc.getClinica())
+    if (!temConteudo) {
+      // Marcar campos faltantes visualmente
+      if (!_blocoPacienteClin?.getCodigo()) blocoPaciente.setErro()
+      subcards.forEach(sc => { if (!sc.getClinica()) sc.sbClin.setErro() })
+      setTimeout(() => {
+        blocoPaciente.limparErro()
+        subcards.forEach(sc => sc.sbClin.limparErro())
+      }, 2500)
+      // Shake + texto de erro no botão
+      btnSalvarFila.textContent = '⚠ preencha os campos'
+      btnSalvarFila.classList.add('erro-shake')
+      setTimeout(() => {
+        btnSalvarFila.classList.remove('erro-shake')
+        btnSalvarFila.textContent = miniAtivo ? '✎ Atualizar na fila' : '＋ Salvar na Fila'
+      }, 2000)
+      return
+    }
+    // I2 — nome com placeholder se sem paciente
+    const nomePac = _blocoPacienteClin?.getCodigo()
+      ? _blocoPacienteClin.getNome()
+      : '⚠ sem paciente'
+    const total      = subcards.reduce((acc, sc) => acc + sc.getTotal(), 0)
+    const valorAtual = total > 0 ? formatarMoeda(total) : valorSpan.textContent
+    const labLabel   = subcards.length > 0 && subcards[0].sbClin ? subcards[0].sbClin.getLabel() : ''
+    if (miniAtivo) {
+      // I1 — atualizar in-place
+      miniAtivo._nome         = nomePac
+      miniAtivo._valor        = valorAtual
+      miniAtivo._labelClinica = labLabel
+      miniAtivo.classList.toggle('mc-sem-paciente', nomePac === '⚠ sem paciente')
+      if (miniAtivo._rebuild) miniAtivo._rebuild()
+      atualizarRodapePainel()
+      btnSalvarFila.textContent = '✓ Atualizado'
+      btnSalvarFila.classList.add('salvo')
+      setTimeout(() => { btnSalvarFila.textContent = '✎ Atualizar na fila'; btnSalvarFila.classList.remove('salvo') }, 2000)
+    } else {
+      // modo salvar novo — adiciona à fila e cria card vazio automaticamente
+      adicionarNaFila(card, nomePac, 'clinica', valorAtual, labLabel, _capturarSnapshotClin())
+      document.getElementById('statusGlobal').innerHTML = '<span class="ok">salvo na fila</span>'
+      setTimeout(() => { document.getElementById('statusGlobal').innerHTML = '' }, 1500)
+      // Feedback no botão antes de destruir o card
+      btnSalvarFila.textContent = '✓ Adicionado!'
+      btnSalvarFila.classList.add('salvo')
+      // Pulso no painel lateral para direcionar o olhar
+      const painel = document.getElementById('painelPendentes')
+      painel.classList.remove('novo-item')
+      void painel.offsetWidth  // reflow para reiniciar a animação
+      painel.classList.add('novo-item')
+      setTimeout(() => painel.classList.remove('novo-item'), 700)
+      setTimeout(() => {
+        adicionarCardClinica()
+        requestAnimationFrame(() => {
+          const inputFoco = document.querySelector('#listaClinicas .card input[type="text"]')
+          if (inputFoco) inputFoco.focus()
+        })
+      }, 400)
+    }
+  })
+  const info = document.createElement('div'); info.className = 'card-info'
+  const nomeSpan = document.createElement('div'); nomeSpan.className = 'card-nome vazio'; nomeSpan.textContent = `clínicas #${contadorClinicas}`
+  const metaSpan = document.createElement('div'); metaSpan.className = 'card-meta'
+  const resumoDiv = document.createElement('div'); resumoDiv.className = 'card-resumo'
+  const resumoNome = document.createElement('div'); resumoNome.className = 'card-resumo-nome'
+  const resumoClinica = document.createElement('div'); resumoClinica.className = 'card-resumo-clinica'
+  const resumoValor = document.createElement('div'); resumoValor.className = 'card-resumo-valor'
+  const resumoTel = document.createElement('div'); resumoTel.className = 'card-resumo-tel'
+  resumoDiv.appendChild(resumoNome); resumoDiv.appendChild(resumoClinica); resumoDiv.appendChild(resumoValor); resumoDiv.appendChild(resumoTel)
+  info.appendChild(nomeSpan); info.appendChild(metaSpan); info.appendChild(resumoDiv)
+  let _blocoPacienteClin = null
+  let _subcardsRef = null
+  const atualizarResumoClin = () => {
+    const d = _blocoPacienteClin ? _blocoPacienteClin.getDados() : null
+    resumoNome.textContent = d?.nome || nomeSpan.textContent
+    resumoTel.textContent = d?.celular ? `Cel: ${d.celular}` : ''
+    if (_subcardsRef && _subcardsRef.length > 0) {
+      const sc = _subcardsRef[0]
+      resumoClinica.textContent = sc.sbClin ? sc.sbClin.getLabel() : ''
+      const total = _subcardsRef.reduce((acc, s) => acc + s.getTotal(), 0)
+      resumoValor.textContent = total > 0 ? formatarMoeda(total) : ''
+    }
+  }
+  const valorSpan = document.createElement('div'); valorSpan.className = 'card-valor zero'; valorSpan.textContent = 'R$ 0,00'
+  const actionsDiv = document.createElement('div'); actionsDiv.className = 'card-actions'
+  const btnRem = document.createElement('button'); btnRem.className = 'btn-rem'; btnRem.title = 'Novo agendamento (limpar)'; btnRem.textContent = '↺ novo'
+  btnRem.addEventListener('click', e => {
+    e.stopPropagation()
+    // Se houver edição de fila em andamento neste card, cancela ela antes
+    // de destruir, para não deixar o mini-card preso em mc-em-edicao
+    if (card._modoEdicao && card._miniEmEdicao) {
+      const miniEd = card._miniEmEdicao
+      miniEd._marcado = miniEd._marcadoAntes ?? true
+      miniEd.classList.toggle('marcado', miniEd._marcado)
+      miniEd.classList.remove('mc-em-edicao')
+      if (miniEd._rebuild) miniEd._rebuild()
+      atualizarRodapePainel()
+      card._modoEdicao = false
+      card._miniEmEdicao = null
+      _edicaoEmAndamento = false
+      _restaurarTabs()
+    }
+    // I6 — verificar se card tem dados antes de destruir
+    const temDados = _blocoPacienteClin?.getCodigo() ||
+      subcards.some(sc => sc.getClinica() || sc.temExames())
+    if (!temDados) { adicionarCardClinica(); return }
+    // confirmação inline
+    btnRem.style.display = 'none'
+    const confirmDiv = document.createElement('span'); confirmDiv.className = 'btn-confirm-novo'
+    confirmDiv.innerHTML = '<span style="font-size:.58rem;color:var(--warn);margin-right:.3rem">perderá os dados</span>'
+    const btnOk  = document.createElement('button'); btnOk.className  = 'btn-rem'; btnOk.textContent = '✓'; btnOk.title = 'Confirmar'
+    const btnCan = document.createElement('button'); btnCan.className = 'btn-rem'; btnCan.textContent = '✕'; btnCan.title = 'Cancelar'
+    confirmDiv.appendChild(btnOk); confirmDiv.appendChild(btnCan)
+    actionsDiv.insertBefore(confirmDiv, collapseBtn)
+    const cancelar = () => { confirmDiv.remove(); btnRem.style.display = '' }
+    const timer = setTimeout(cancelar, 6000)
+    btnOk.addEventListener('click', ev => { ev.stopPropagation(); clearTimeout(timer); adicionarCardClinica() })
+    btnCan.addEventListener('click', ev => { ev.stopPropagation(); clearTimeout(timer); cancelar() })
+  })
+  const collapseBtn = document.createElement('span'); collapseBtn.className = 'btn-icon card-collapse'; collapseBtn.textContent = '▾'; collapseBtn.style.cursor = 'pointer'
+  actionsDiv.appendChild(btnRem); actionsDiv.appendChild(collapseBtn)
+  top.appendChild(btnSalvarFila); top.appendChild(btnSalvarAlteracoesClin); top.appendChild(btnCancelarEdicaoClin); top.appendChild(info); top.appendChild(valorSpan); top.appendChild(actionsDiv)
+  top.addEventListener('click', () => { card.classList.toggle('fechado'); atualizarResumoClin() })
+
+  const body = document.createElement('div'); body.className = 'card-body'
+  const atualizarValorHeader = () => {
+    const total = subcards.reduce((acc, sc) => acc + sc.getTotal(), 0)
+    valorSpan.textContent = formatarMoeda(total); valorSpan.classList.toggle('zero', total === 0)
+    atualizarResumoClin()
+  }
+  const blocoPaciente = criarBlocoPaciente(dados => {
+    nomeSpan.textContent = dados.nome; nomeSpan.classList.remove('vazio')
+    metaSpan.innerHTML = `<span>${dados.cpf}</span><span class="tag">${dados.celular || 'sem cel'}</span>`
+    if (card._sincronizarMiniCard) card._sincronizarMiniCard()
+  })
+  _blocoPacienteClin = blocoPaciente
+  const listaSubcards = document.createElement('div'); listaSubcards.className = 'subcards-lista'
+
+  const adicionarSubcard = () => {
+    const scIdx = subcards.length + 1
+    const subcard = document.createElement('div'); subcard.className = 'subcard'
+    const scHeader = document.createElement('div'); scHeader.className = 'subcard-header'
+    const scLabel  = document.createElement('span'); scLabel.className = 'subcard-label'; scLabel.textContent = `clínica ${scIdx}`
+    const scBtnRem = document.createElement('button'); scBtnRem.className = 'btn-rem'; scBtnRem.textContent = '✕ remover clínica'
+    scBtnRem.addEventListener('click', () => { const i = subcards.indexOf(scObj); if (i !== -1) subcards.splice(i, 1); subcard.remove(); atualizarValorHeader() })
+    scHeader.appendChild(scLabel); scHeader.appendChild(scBtnRem)
+    const scGrid = document.createElement('div'); scGrid.className = 'grid'
+    const fieldClin = document.createElement('div'); fieldClin.className = 'field full'
+    const lblClin = document.createElement('label'); lblClin.textContent = 'Clínica'
+    const sbClin  = criarSearchbox(clinicasList.map(c => ({ value: c.id, label: c.nome })), 'buscar clínica...')
+    const erroClin = document.createElement('div'); erroClin.className = 'erro-msg'
+    fieldClin.appendChild(lblClin); fieldClin.appendChild(sbClin); fieldClin.appendChild(erroClin)
+
+    const calHorClin = criarCalendarioHorario()
+    const inputData = {
+      get value() { return calHorClin.getValue().data },
+      set value(_) { calHorClin.resetar() },
+      classList: { add(c) { if(c==='erro') calHorClin.setErroData() }, remove(c) { if(c==='erro') calHorClin.limparErroData() } }
+    }
+    const inputHorario = {
+      get value() { return calHorClin.getValue().horario },
+      set value(v) { if (!v) { const inp = calHorClin.wrapper.querySelector('.cal-horario-input'); if (inp) inp.value = '' } },
+      classList: { add(c) { if(c==='erro') calHorClin.setErroHorario() }, remove(c) { if(c==='erro') calHorClin.limparErroHorario() } }
+    }
+    const erroData = document.createElement('div'); erroData.className = 'erro-msg'
+
+    scGrid.appendChild(fieldClin); scGrid.appendChild(calHorClin.wrapper)
+    const fieldEx = document.createElement('div'); fieldEx.className = 'field full'
+    const lblEx   = document.createElement('label'); lblEx.textContent = 'Exames'
+    const campoExames = criarCampoExamesClinica(atualizarValorHeader, 'clinica')
+    // Atualiza exames do subcard quando clínica é confirmada (clique ou Enter)
+    sbClin.onConfirm(item => campoExames.atualizarClinica(item.value))
+    const erroEx  = document.createElement('div'); erroEx.className = 'erro-msg'
+    fieldEx.appendChild(lblEx); fieldEx.appendChild(campoExames); fieldEx.appendChild(erroEx)
+    subcard.appendChild(scHeader); subcard.appendChild(scGrid); subcard.appendChild(fieldEx)
+    listaSubcards.appendChild(subcard)
+    const scObj = {
+      getTotal: () => campoExames.getTotal(), getClinica: () => sbClin.getValor(),
+      getData: () => inputData.value, getHorario: () => inputHorario.value,
+      getExames: () => campoExames.getExames(), temExames: () => campoExames.temExames(),
+      sbClin, inputData, inputHorario, campoExames,
+      setDataHorario: (data, horario) => calHorClin.setValue(data, horario)
+    }
+    subcards.push(scObj)
+  }
+  adicionarSubcard()
+
+  const btnAddClinica = document.createElement('button'); btnAddClinica.className = 'btn-add-clinica'; btnAddClinica.textContent = '+ adicionar clínica'
+  btnAddClinica.addEventListener('click', e => { e.stopPropagation(); adicionarSubcard() })
+  const statusDiv = document.createElement('div'); statusDiv.className = 'card-status'
+
+  _subcardsRef = subcards
+  body.appendChild(blocoPaciente); body.appendChild(listaSubcards); body.appendChild(btnAddClinica); body.appendChild(statusDiv)
+  card.appendChild(top); card.appendChild(body)
+  lista.appendChild(card); atualizarCountColunas()
+  card.classList.add('entrando'); setTimeout(() => card.classList.remove('entrando'), 300)
+
+  card._tipo     = 'clinica'
+  card._getCheck = () => false
+  card._modoEdicao   = false
+  card._miniEmEdicao = null
+  card._atualizarResumo = atualizarResumoClin
+
+  // Captura snapshot do estado atual do card clínica
+  const _capturarSnapshotClin = () => ({
+    pacienteCodigo: _blocoPacienteClin.getCodigo(),
+    subcards: subcards.map(sc => ({
+      clinicaId:    sc.getClinica(),
+      clinicaLabel: sc.sbClin.getLabel(),
+      exames:       sc.getExames(),
+      data:         sc.getData(),
+      horario:      sc.getHorario()
+    }))
+  })
+
+  // Alterna UI entre modo normal e modo edição
+  const _atualizarUiEdicaoClin = () => {
+    if (card._modoEdicao) {
+      card.classList.add('card-em-edicao')
+      btnSalvarFila.style.display = 'none'
+      btnSalvarAlteracoesClin.style.display = ''
+      btnCancelarEdicaoClin.style.display   = ''
+    } else {
+      card.classList.remove('card-em-edicao')
+      btnSalvarFila.style.display = ''
+      btnSalvarAlteracoesClin.style.display = 'none'
+      btnCancelarEdicaoClin.style.display   = 'none'
+    }
+  }
+
+  // Inicia edição: restaura estado do snapshot e entra em modo edição
+  card._iniciarEdicao = async (mini) => {
+    const snap = mini._snapshot
+    if (!snap) return
+
+    // Se card foi destruído pelo reset automático pós-salvamento, recriar e redirecionar
+    if (!document.contains(card)) {
+      adicionarCardClinica()
+      const novoCard = document.querySelector('#listaClinicas .card')
+      mini._cardRef = novoCard
+      await novoCard._iniciarEdicao(mini)
+      return
+    }
+
+    // (1) Restaurar paciente
+    if (snap.pacienteCodigo) {
+      const inputCod = blocoPaciente.querySelector('input[type="text"]')
+      if (inputCod) {
+        inputCod.value = snap.pacienteCodigo
+        inputCod.dispatchEvent(new Event('input'))
+      }
+    }
+
+    // (2) Restaurar subcards
+    subcards.length = 0
+    listaSubcards.innerHTML = ''
+    for (const sc of (snap.subcards || [])) {
+      adicionarSubcard()
+      const scObj = subcards[subcards.length - 1]
+      scObj.sbClin.preencherValor(sc.clinicaId, sc.clinicaLabel)
+      await scObj.campoExames.atualizarClinica(sc.clinicaId)
+      if (sc.exames?.length) scObj.campoExames.preencherExames(sc.exames)
+      if (sc.data || sc.horario) scObj.setDataHorario(sc.data, sc.horario)
+    }
+    atualizarValorHeader()
+
+    // (3) Entrar em modo edição visual
+    card._modoEdicao = true
+    card._miniEmEdicao = mini
+    _atualizarUiEdicaoClin()
+  }
+
+  // Salvar alterações
+  btnSalvarAlteracoesClin.addEventListener('click', e => {
+    e.stopPropagation()
+    const mini = card._miniEmEdicao
+    if (!mini) return
+
+    const novoSnap = _capturarSnapshotClin()
+    mini._snapshot = novoSnap
+
+    const nomePac = _blocoPacienteClin?.getCodigo()
+      ? _blocoPacienteClin.getNome() : '⚠ sem paciente'
+    const total = subcards.reduce((acc, sc) => acc + sc.getTotal(), 0)
+    const valorAtual = total > 0 ? formatarMoeda(total) : valorSpan.textContent
+    const labLabel = subcards.length > 0 && subcards[0].sbClin ? subcards[0].sbClin.getLabel() : ''
+
+    mini._nome         = nomePac
+    mini._valor        = valorAtual
+    mini._labelClinica = labLabel
+    mini.classList.toggle('mc-sem-paciente', nomePac === '⚠ sem paciente')
+
+    mini._marcado = mini._marcadoAntes ?? true
+    mini.classList.toggle('marcado', mini._marcado)
+    mini.classList.remove('mc-em-edicao')
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+
+    card._modoEdicao = false
+    card._miniEmEdicao = null
+    _atualizarUiEdicaoClin()
+    _edicaoEmAndamento = false
+    _restaurarTabs()
+    adicionarCardClinica()
+    requestAnimationFrame(() => {
+      const inputFoco = document.querySelector('#listaClinicas .card input[type="text"]')
+      if (inputFoco) inputFoco.focus()
+    })
+  })
+
+  // Cancelar edição: sai do modo edição e apresenta card vazio
+  btnCancelarEdicaoClin.addEventListener('click', e => {
+    e.stopPropagation()
+    const mini = card._miniEmEdicao
+    if (!mini) return
+
+    mini._marcado = mini._marcadoAntes ?? true
+    mini.classList.toggle('marcado', mini._marcado)
+    mini.classList.remove('mc-em-edicao')
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+
+    card._modoEdicao = false
+    card._miniEmEdicao = null
+    _atualizarUiEdicaoClin()
+    _edicaoEmAndamento = false
+    _restaurarTabs()
+    adicionarCardClinica()
+    requestAnimationFrame(() => {
+      const inputFoco = document.querySelector('#listaClinicas .card input[type="text"]')
+      if (inputFoco) inputFoco.focus()
+    })
+  })
+  // I3 — sincroniza nome e indicador do mini-card quando paciente é preenchido
+  card._sincronizarMiniCard = () => {
+    const mini = [...document.getElementById('listaPendentes')
+      .querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+    if (!mini) return
+    const temCodigo = _blocoPacienteClin?.getCodigo()
+    mini._nome = temCodigo ? _blocoPacienteClin.getNome() : '⚠ sem paciente'
+    mini.classList.toggle('mc-sem-paciente', !temCodigo)
+    if (mini._rebuild) mini._rebuild()
+    atualizarRodapePainel()
+  }
+  // I1 — atualiza label do botão conforme estado da fila
+  card._atualizarBtnFila = () => {
+    const mini = [...document.getElementById('listaPendentes')
+      .querySelectorAll('.mini-card')].find(m => m._cardRef === card)
+    btnSalvarFila.textContent = mini ? '✎ Atualizar na fila' : '＋ Salvar na Fila'
+  }
+  card._getDados = () => {
+    let valido = true
+    if (!blocoPaciente.getCodigo()) { blocoPaciente.setErro(); valido = false } else blocoPaciente.limparErro()
+    if (!subcards.length) valido = false
+    const agendamentos = []
+    for (const sc of subcards) {
+      if (!sc.getClinica())  { sc.sbClin.setErro();  valido = false } else sc.sbClin.limparErro()
+      if (!sc.getData())     { sc.inputData.classList.add('erro');    valido = false } else sc.inputData.classList.remove('erro')
+      if (!sc.getHorario())  { sc.inputHorario.classList.add('erro'); valido = false } else sc.inputHorario.classList.remove('erro')
+      if (!sc.temExames())   { sc.campoExames.setErro();  valido = false } else sc.campoExames.limparErro()
+      agendamentos.push({ codigoPaciente: blocoPaciente.getCodigo(), cpfPaciente: _blocoPacienteClin.getDados()?.cpf || null, datanascPaciente: _blocoPacienteClin.getDados()?.datanasc || null, codigoClinica: sc.getClinica(), exames: sc.getExames(), data: sc.getData(), horario: sc.getHorario(), tipoCard: 'clinica' })
+    }
+    if (!valido) return false
+    return agendamentos
+  }
+  card._setStatus = (tipo, msg) => {
+    statusDiv.textContent = msg; statusDiv.className = `card-status visivel ${tipo}`
+    card.classList.toggle('processado', tipo === 'ok'); card.classList.toggle('erro', tipo === 'erro')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAINEL DE FILA — mini-cards adicionados via botão "Salvar na Fila"
+// ─────────────────────────────────────────────────────────────
+function atualizarRodapePainel() {
+  const listaPendentes = document.getElementById('listaPendentes')
+  const painelEmpty    = document.getElementById('painelEmpty')
+  const countPendentes = document.getElementById('countPendentes')
+  const footerCount    = document.getElementById('footerCount')
+  const footerTotal    = document.getElementById('footerTotal')
+
+  const miniCards = [...listaPendentes.querySelectorAll('.mini-card')]
+  const marcados  = miniCards.filter(m => m._marcado)
+
+  painelEmpty.style.display  = miniCards.length ? 'none' : ''
+  countPendentes.textContent = String(miniCards.length)
+
+  let totalMarcados = 0
+  marcados.forEach(m => {
+    if (m._modoCard === 'orcamento') return  // orçamentos não serão processados, não somam ao total
+    const v = parseFloat((m._valor || '').replace(/~/, '').replace(/\(.*\)/, '').replace('R$','').replace(/\./g,'').replace(',','.')) || 0
+    totalMarcados += v
+  })
+
+  const fmt = v => `R$ ${v.toFixed(2).replace('.', ',')}`
+  footerCount.textContent = `${marcados.length} de ${miniCards.length} marcado${marcados.length !== 1 ? 's' : ''}`
+  footerTotal.textContent = fmt(totalMarcados)
+}
+
+function adicionarNaFila(card, nome, tipo, valorTxt, labelClinica, snapshot = null, modoCard = 'agendar') {
+  const listaPendentes = document.getElementById('listaPendentes')
+
+  // C1 — Impede duplicata: aborta se o card já tem entrada ativa na fila
+  const jaExiste = [...listaPendentes.querySelectorAll('.mini-card')]
+    .some(m => m._cardRef === card)
+  if (jaExiste) return false
+
+  const tagClass = modoCard === 'orcamento' ? 'orc' : (tipo === 'lab' ? 'lab' : 'clin')
+  const tagLabel = modoCard === 'orcamento' ? 'Orçamento' : (tipo === 'lab' ? 'Laboratório' : 'Clínica')
+
+  const mini = document.createElement('div')
+  mini.className = 'mini-card'
+  mini._cardRef       = card
+  mini._marcado       = false
+  mini._valor         = valorTxt
+  mini._tipo          = tipo
+  mini._modoCard      = modoCard      // modo do card ao salvar na fila ('agendar' ou 'orcamento')
+  mini._nome          = nome          // I1/I3 — mutável para atualização e sync
+  mini._labelClinica  = labelClinica  // I1 — mutável para atualização
+  mini._snapshot      = snapshot      // snapshot do estado ao salvar na fila
+
+  // I3 — indicador visual se sem paciente
+  if (nome === '⚠ sem paciente') mini.classList.add('mc-sem-paciente')
+
+  const buildHtml = () => {
+    const emEdicao = mini.classList.contains('mc-em-edicao')
+    const isOrcamento = mini._modoCard === 'orcamento'
+    const displayTagLabel = isOrcamento ? 'Orçamento' : tagLabel
+    const displayTagClass = isOrcamento ? 'orc' : tagClass
+    const displayTipo = isOrcamento ? 'Orçamento' : (tagLabel + (mini._labelClinica ? ' · ' + mini._labelClinica : ''))
+    const checkHtml = isOrcamento
+      ? `<div role="note" style="font-family:var(--mono);font-size:.6rem;color:var(--warn);margin-top:.35rem;padding:.25rem .5rem;background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.3);border-radius:4px;cursor:default;">⚠ apenas orçamento — converta para agendar</div>`
+      : `<button class="mc-check-btn ${mini._marcado ? '' : 'desmarcado'}">${mini._marcado ? '✓ Marcado para enviar' : '○ Desmarcado'}</button>`
+    mini.innerHTML = `
+      <div class="mc-row-top">
+        <div style="min-width:0">
+          <div class="mc-nome">${escHTML(mini._nome)}</div>
+          <div class="mc-tipo">${escHTML(displayTipo)}</div>
+          ${emEdicao ? '<span class="mc-editando-badge">editando...</span>' : ''}
+        </div>
+        <div style="display:flex;gap:.2rem;flex-shrink:0">
+          <button class="mc-btn-editar ${emEdicao ? 'mc-btn-disabled' : ''}" ${emEdicao ? 'disabled' : ''} title="Editar">✎</button>
+          <button class="mc-btn-rem" title="Remover da fila">✕</button>
+        </div>
+      </div>
+      <div class="mc-row-bot">
+        <span class="mc-tags"><span class="mc-tag ${displayTagClass}">${displayTagLabel}</span></span>
+        <span class="mc-valor">${mini._valor}</span>
+      </div>
+      ${checkHtml}`
+
+    // I4 — remoção com undo de 5 segundos
+    mini.querySelector('.mc-btn-rem').addEventListener('click', e => {
+      e.stopPropagation()
+      mini.style.visibility = 'hidden'
+      const undo = document.createElement('div')
+      undo.className = 'mc-undo'
+      undo.innerHTML = 'Removido — <button class="mc-undo-btn">desfazer</button>'
+      mini.parentNode.insertBefore(undo, mini.nextSibling)
+      const timer = setTimeout(() => {
+        mini.remove()
+        undo.remove()
+        atualizarRodapePainel()
+      }, 5000)
+      undo.querySelector('.mc-undo-btn').addEventListener('click', e => {
+        e.stopPropagation()
+        clearTimeout(timer)
+        mini.style.visibility = ''
+        undo.remove()
+      })
+    })
+
+    // Listener botão editar
+    const btnEditar = mini.querySelector('.mc-btn-editar')
+    if (btnEditar && !emEdicao) {
+      btnEditar.addEventListener('click', async (e) => {
+        if (mini._recemSalvo) return
+        // Bloqueia imediatamente qualquer segunda edição antes do await
+        if (_edicaoEmAndamento) return
+        e.stopPropagation()
+        mini._marcadoAntes = mini._marcado
+        mini._marcado = false
+        mini.classList.remove('marcado')
+        mini.classList.add('mc-em-edicao')
+        buildHtml()
+        atualizarRodapePainel()
+        const abaAlvo = mini._tipo === 'lab' ? 'lab' : 'clinicas'
+        ativarAba(abaAlvo)
+        // Seta flag após ativarAba (para não bloquear a troca de aba)
+        // mas antes do await (para fechar a race condition de edição dupla)
+        _edicaoEmAndamento = true
+        // Aguarda restauração completa após aba já estar ativa
+        await mini._cardRef._iniciarEdicao(mini)
+        focarCard(mini._cardRef, mini._tipo)
+      })
+    }
+
+    mini.querySelector('.mc-check-btn')?.addEventListener('click', e => {
+      e.stopPropagation()
+      mini._marcado = !mini._marcado
+      mini.classList.toggle('marcado', mini._marcado)
+      buildHtml()
+      atualizarRodapePainel()
+    })
+
+    // Click on mini-card body → navigate to card column and reveal card
+    mini.addEventListener('click', e => {
+      if (mini._recemSalvo) return
+      if (e.target.closest('.mc-btn-rem') || e.target.closest('.mc-check-btn') || e.target.closest('.mc-undo') || e.target.closest('.mc-btn-editar') || e.target.closest('[role="note"]')) return
+      focarCard(mini._cardRef, mini._tipo)
+    })
+  }
+
+  mini._rebuild = buildHtml  // I1/I3 — expõe buildHtml para atualização externa
+
+  buildHtml()
+  listaPendentes.appendChild(mini)
+  mini.classList.add('entrando')
+  setTimeout(() => mini.classList.remove('entrando'), 300)
+  // Flag temporal: bloqueia interações nos primeiros 500ms após salvar na fila,
+  // impedindo que _iniciarEdicao seja disparado automaticamente pelo scroll/foco.
+  mini._recemSalvo = true
+  setTimeout(() => { mini._recemSalvo = false }, 500)
+  mini.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  atualizarRodapePainel()
+}
+
+// Navega até o card referenciado e garante que esteja expandido
+function focarCard(card, tipo) {
+  if (!card) return
+  // Switch tab somente se necessário — evita disparar auto-criador de card via .click()
+  const abaAlvo = tipo === 'lab' ? 'lab' : 'clinicas'
+  const tabAlvo = document.getElementById(abaAlvo === 'lab' ? 'tabLab' : 'tabClinicas')
+  if (!tabAlvo.classList.contains('ativo')) {
+    ativarAba(abaAlvo)  // chama diretamente, não via .click()
+  }
+  // Expande o card
+  if (card.classList.contains('fechado')) card.classList.remove('fechado')
+  // Highlight temporário
+  card.classList.add('card-highlight')
+  setTimeout(() => card.classList.remove('card-highlight'), 1200)
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (card._atualizarResumo) card._atualizarResumo()
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROCESSAMENTO — lê mini-cards marcados do painel
+// ─────────────────────────────────────────────────────────────
+async function processar() {
+  const status       = document.getElementById('statusGlobal')
+  const listaPendentes = document.getElementById('listaPendentes')
+  const miniCards    = [...listaPendentes.querySelectorAll('.mini-card')]
+  const marcados     = miniCards.filter(m => m._marcado && m._cardRef)
+
+  if (!marcados.length) { status.innerHTML = '<span class="err">nenhum card marcado na fila</span>'; return }
+
+  const marcadosFiltrados = marcados.filter(m => !m.classList.contains('mc-em-edicao'))
+
+  if (!marcadosFiltrados.length) {
+    status.innerHTML = '<span class="err">nenhum card marcado (ou todos em edição)</span>'
+    return
+  }
+
+  const payloads = []
+  for (const mini of marcadosFiltrados) {
+    const card  = mini._cardRef
+    const dados = card._getDados ? card._getDados() : null
+    if (dados === null) continue   // null → modo orçamento, pular
+    if (!dados) { status.innerHTML = '<span class="err">corrija os campos com erro nos cards</span>'; return }
+    // dados false → falha de validação (campos incompletos)
+    payloads.push({ card, mini, agendamentos: dados })
+  }
+
+  if (!payloads.length) {
+    const ignorados = marcadosFiltrados.filter(m => {
+      const d = m._cardRef?._getDados ? m._cardRef._getDados() : undefined
+      return d === null
+    }).length
+    const sufixo = ignorados > 0
+      ? ` — ${ignorados} item(ns) de orçamento ignorado(s): converta para modo agendar`
+      : ''
+    status.innerHTML = `<span class="err">nenhum card em modo agendar na fila${sufixo}</span>`
+    return
+  }
+
+  status.innerHTML = `processando ${payloads.length} card(s)...`
+
+  for (const { card, mini, agendamentos } of payloads) {
+    card._setStatus('', 'processando...')
+    try {
+      const resultados = await window.electronAPI.agendar(agendamentos)
+      const erros      = resultados.filter(r => !r.sucesso)
+      if (erros.length) {
+        card._setStatus('erro', erros.map(e => e.erro).join(' · '))
+      } else {
+        card._setStatus('ok', resultados.map(r => `✓ ${r.nomePaciente}`).join(' · '))
+        setTimeout(() => {
+          card.remove()
+          mini.remove()
+          atualizarCountColunas()
+          atualizarRodapePainel()
+        }, 1500)
+      }
+    } catch (err) {
+      card._setStatus('erro', err.message)
+    }
+  }
+  status.innerHTML = `<span class="ok">processamento concluído</span>`
+}
+
+function desmarcarTodos() {
+  const listaPendentes = document.getElementById('listaPendentes')
+  listaPendentes.querySelectorAll('.mini-card').forEach(m => {
+    if (m._marcado) {
+      m._marcado = false
+      m.classList.remove('marcado')
+      if (m._rebuild) m._rebuild()
+    }
+  })
+  atualizarRodapePainel()
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB NAVIGATION — alterna colunas em viewports < 1100px
+// ─────────────────────────────────────────────────────────────
+function _restaurarTabs() {
+  const tC = document.getElementById('tabClinicas')
+  const tL = document.getElementById('tabLab')
+  if (tC) { tC.style.opacity = ''; tC.style.cursor = ''; tC.title = '' }
+  if (tL) { tL.style.opacity = ''; tL.style.cursor = ''; tL.title = '' }
+}
+
+;(function() {
+  const tabClinicas  = document.getElementById('tabClinicas')
+  const tabLab       = document.getElementById('tabLab')
+  const tabSistema   = document.getElementById('tabSistema')
+  const colClinicas  = document.querySelector('.col-clinicas')
+  const colLab       = document.querySelector('.col-lab')
+  const painelSistema = document.getElementById('painelSistema')
+  const workspace    = document.querySelector('.workspace')
+
+  window.ativarAba = (aba) => {
+    // Verificar edição ativa — bloqueia troca apenas entre clínicas/lab
+    if (aba !== 'sistema') {
+      const cardLabAtivo   = document.querySelector('#listaLab .card')
+      const cardClinAtivo  = document.querySelector('#listaClinicas .card')
+      const cardEmEdicao   = _edicaoEmAndamento ||
+        [cardLabAtivo, cardClinAtivo].find(c => c?._modoEdicao)
+      if (cardEmEdicao) {
+        const status = document.getElementById('statusGlobal')
+        status.innerHTML = '<span class="err">salve ou cancele a edição antes de trocar de aba</span>'
+        setTimeout(() => { status.innerHTML = '' }, 3000)
+        const tabOposta = aba === 'clinicas' ? tabLab : tabClinicas
+        tabOposta.style.opacity = '0.45'
+        tabOposta.style.cursor = 'not-allowed'
+        tabOposta.title = 'edição em andamento — salve ou cancele primeiro'
+        setTimeout(() => {
+          tabOposta.style.opacity = ''
+          tabOposta.style.cursor = ''
+          tabOposta.title = ''
+        }, 3000)
+        return
+      }
+    }
+
+    // Ocultar painel sistema e restaurar workspace por padrão
+    painelSistema.classList.remove('visivel')
+    workspace.style.display = ''
+
+    if (aba === 'clinicas') {
+      tabClinicas.classList.add('ativo'); tabLab.classList.remove('ativo'); tabSistema.classList.remove('ativo')
+      colClinicas.classList.remove('oculta'); colLab.classList.add('oculta')
+      if (!document.querySelector('#listaClinicas .card')) adicionarCardClinica()
+    } else if (aba === 'lab') {
+      tabLab.classList.add('ativo'); tabClinicas.classList.remove('ativo'); tabSistema.classList.remove('ativo')
+      colLab.classList.remove('oculta'); colClinicas.classList.add('oculta')
+      if (!document.querySelector('#listaLab .card')) adicionarCardLab()
+    } else if (aba === 'sistema') {
+      tabSistema.classList.add('ativo'); tabClinicas.classList.remove('ativo'); tabLab.classList.remove('ativo')
+      // Oculta o workspace e exibe o webview em tela cheia abaixo da topbar
+      workspace.style.display = 'none'
+      painelSistema.classList.add('visivel')
+    }
+  }
+
+  tabClinicas.addEventListener('click', e => { e.stopPropagation(); ativarAba('clinicas') })
+  tabLab.addEventListener('click',      e => { e.stopPropagation(); ativarAba('lab') })
+  tabSistema.addEventListener('click',  e => { e.stopPropagation(); ativarAba('sistema') })
+
+  // Start on clínicas (card criado após inicializar())
+  ativarAba('clinicas')
+})()
+
+inicializar()
+</script>
+
+<!-- ── MODAL QR CODE WHATSAPP ── -->
+<div id="qr-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:#fff;padding:2rem 2.5rem;border-radius:14px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);">
+    <p style="margin-bottom:1.25rem;font-weight:600;font-family:var(--sans);font-size:.95rem;color:#111827;">
+      Escaneie com o WhatsApp para conectar
+    </p>
+    <canvas id="qr-canvas" style="display:none"></canvas>
+    <img id="qr-img" src="" alt="QR Code WhatsApp" style="width:260px;height:260px;border-radius:8px;display:block;margin:0 auto;"/>
+    <p id="qr-status-txt" style="margin-top:.85rem;color:#6b7280;font-size:.78rem;font-family:var(--mono);">
+      Aguardando scan...
+    </p>
+  </div>
+</div>
+
+<script>
+// ── Integração Electron IPC ──────────────────────────────────
+// Só executa quando window.electronAPI estiver disponível
+// (injetado pelo preload.cjs). Em browser comum, bloco ignorado.
+if (window.electronAPI) {
+
+  // Sinaliza ao main.cjs que o renderer está pronto para receber eventos.
+  // Resolve a race condition do QR Code — o main.cjs reenvia o QR pendente
+  // assim que receber este sinal.
+  window.electronAPI.rendererReady()
+
+  // Repassa navegações do <webview> ao main.cjs para captura de cookie de sessão
+  const wv = document.getElementById('webviewSistema')
+  if (wv) {
+    wv.addEventListener('did-navigate',         e => window.electronAPI.webviewNavegou(e.url))
+    wv.addEventListener('did-navigate-in-page', e => window.electronAPI.webviewNavegou(e.url))
+  }
+
+  // QR Code do Baileys — recebe PNG base64 gerado no main.cjs e exibe via <img>
+  window.electronAPI.onQrCode(dataUrl => {
+    const overlay = document.getElementById('qr-overlay')
+    overlay.style.display = 'flex'
+    document.getElementById('qr-img').src = dataUrl
+    document.getElementById('qr-status-txt').textContent = 'Aguardando scan...'
+  })
+
+  // Status do WhatsApp — fecha modal ao conectar, atualiza topbar
+  window.electronAPI.onWhatsappStatus(status => {
+    if (status === 'conectado') {
+      document.getElementById('qr-overlay').style.display = 'none'
+    }
+    // Sincroniza com o indicador existente na topbar
+    const s = document.getElementById('statusGlobal')
+    if (!s) return
+    if (status === 'conectado') {
+      s.innerHTML = '<span class="ok">WA conectado</span>'
+      setTimeout(() => { s.innerHTML = '' }, 3000)
+    } else if (status === 'aguardando_qr' || status === 'connecting') {
+      s.innerHTML = '<span style="color:var(--warn)">WA conectando...</span>'
+    } else if (status === 'disconnected' || status === 'reconnecting') {
+      s.innerHTML = '<span class="err">WA desconectado</span>'
+    }
+  })
+
+  // Sessão expirada — avisa o operador na topbar e abre aba do sistema automaticamente
+  window.electronAPI.onSessaoExpirada(() => {
+    const s = document.getElementById('statusGlobal')
+    if (s) s.innerHTML = '<span class="err">sessão expirada — faça login</span>'
+    ativarAba('sistema')
+  })
+
+  // Sessão restaurada — feedback positivo breve
+  window.electronAPI.onSessaoOk(() => {
+    const s = document.getElementById('statusGlobal')
+    if (s) {
+      s.innerHTML = '<span class="ok">sessão restaurada</span>'
+      setTimeout(() => { s.innerHTML = '' }, 3000)
+    }
+  })
+}
+</script>
+
+</body>
+</html>

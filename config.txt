@@ -1,0 +1,13 @@
+ & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+
+ Baixar nsi
+
+Fez orçamento
+foi para aba agendar
+inseriu um fornecedor sem o exame orçado disponível
+exame foi para excluído
+inseriu o fornecedor com o exame disponível
+exame não foi inserido
+ao inserir o exame manualmente, ele exibe a clinica
+
+Comportamento esperado: ao inserir a clinica sem o exame orçado e depois inserir a clinica com o exame orçado, o painel-exames-orcados muda automaticamente  painel-orc-tag alocado

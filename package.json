@@ -1,0 +1,78 @@
+{
+  "name": "agendamentos-electron",
+  "version": "1.0.6",
+  "description": "Sistema de agendamentos",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "prebuild": "node prebuild.cjs",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win nsis --x64",
+    "build:dir": "electron-builder --win dir --x64",
+    "build:setup-local": "npm run build:dir && \"C:\\Program Files (x86)\\NSIS\\makensis.exe\" installer.nsi",
+    "postinstall": "electron-rebuild"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "bufferutil": "^4.1.0",
+    "qrcode": "^1.5.3",
+    "utf-8-validate": "^6.0.6"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9"
+  },
+  "build": {
+    "appId": "com.agendamentos.app",
+    "productName": "Agendamentos",
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "compression": "store",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Agendamentos-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Agendamentos",
+      "uninstallDisplayName": "Agendamentos"
+    },
+    "files": [
+      "**/*",
+      "public/**",
+      "assets/**",
+      "!baileys_session/**",
+      "!baileys_session",
+      "!sessao.json",
+      "!.app-version",
+      "!.app-build-id",
+      "!estrutura.txt",
+      "!server.js",
+      "!test_electron.cjs",
+      "!prebuild.cjs",
+      "!node_modules/.cache/**",
+      "!**/*.log",
+      "!.env*",
+      "!.gitignore"
+    ],
+    "npmRebuild": true
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
