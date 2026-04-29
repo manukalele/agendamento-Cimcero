@@ -559,7 +559,6 @@ function _bancoSyncStateVazio() {
     lastReportTotal: 0,
     lastReportAt: 0,
     lastReportDisabledCount: 0,
-    fornecedores: {},
   }
 }
 
@@ -567,11 +566,11 @@ function _carregarBancoSyncState() {
   try {
     const raw = JSON.parse(fs.readFileSync(BANCO_SYNC_STATE_PATH, 'utf-8'))
     const base = raw && typeof raw === 'object' ? raw : {}
-    if (!base.fornecedores || typeof base.fornecedores !== 'object') base.fornecedores = {}
-    base.lastReportTotal = Number(base.lastReportTotal || 0) || 0
-    base.lastReportAt = Number(base.lastReportAt || 0) || 0
-    base.lastReportDisabledCount = Number(base.lastReportDisabledCount || 0) || 0
-    return base
+    return {
+      lastReportTotal: Number(base.lastReportTotal || 0) || 0,
+      lastReportAt: Number(base.lastReportAt || 0) || 0,
+      lastReportDisabledCount: Number(base.lastReportDisabledCount || 0) || 0,
+    }
   } catch {
     return _bancoSyncStateVazio()
   }
@@ -579,33 +578,11 @@ function _carregarBancoSyncState() {
 
 function _salvarBancoSyncState(state) {
   const base = state && typeof state === 'object' ? state : _bancoSyncStateVazio()
-  if (!base.fornecedores || typeof base.fornecedores !== 'object') base.fornecedores = {}
-  _escreverJsonAtomico(BANCO_SYNC_STATE_PATH, base)
-}
-
-function _bancoSyncStateFornecedor(state, forid) {
-  const s = state && typeof state === 'object' ? state : null
-  if (!s) return null
-  if (!s.fornecedores || typeof s.fornecedores !== 'object') s.fornecedores = {}
-  const id = String(forid || '').trim()
-  if (!id) return null
-  if (!s.fornecedores[id]) {
-    s.fornecedores[id] = {
-      lastSeenAt: 0,
-      lastReportStatus: 'missing',
-      consecutiveInactive: 0,
-      consecutiveMissing: 0,
-      lastLabel: '',
-    }
-  }
-  const rec = s.fornecedores[id]
-  if (!rec || typeof rec !== 'object') return null
-  rec.lastSeenAt = Number(rec.lastSeenAt || 0) || 0
-  rec.consecutiveInactive = Number(rec.consecutiveInactive || 0) || 0
-  rec.consecutiveMissing = Number(rec.consecutiveMissing || 0) || 0
-  rec.lastReportStatus = String(rec.lastReportStatus || 'missing')
-  rec.lastLabel = String(rec.lastLabel || '')
-  return rec
+  _escreverJsonAtomico(BANCO_SYNC_STATE_PATH, {
+    lastReportTotal: Number(base.lastReportTotal || 0) || 0,
+    lastReportAt: Number(base.lastReportAt || 0) || 0,
+    lastReportDisabledCount: Number(base.lastReportDisabledCount || 0) || 0,
+  })
 }
 
 function _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, novoAtivo, resumo) {
@@ -620,88 +597,6 @@ function _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, novoAtivo, resum
   }
   _logBancoSyncFor(forid, `CLINICA ATIVO ALTERADO: ${atual} -> ${desejado} (${clinica.nome || '-'})`)
   return true
-}
-
-async function _acmanagerPostTextoBruto(formObj, contexto) {
-  const params = new URLSearchParams(formObj || {})
-  if (!params.has('_')) params.set('_', String(Date.now()))
-
-  const res = await fetch(URL_ACMANAGER, {
-    method: 'POST',
-    headers: {
-      ..._headersAcmanager(),
-      'Accept': '*/*',
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    },
-    body: params.toString(),
-  })
-  if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${contexto}`)
-  const texto = await res.text()
-
-  const t = texto.trimStart()
-  // Alguns endpoints podem devolver um HTML completo; tratamos como "login" apenas se tiver sinais claros do sistema/login.
-  const pareceLogin = t.startsWith('<!DOCTYPE') || t.startsWith('<html') || t.includes('Sics - Sistema')
-  if (pareceLogin) {
-    const temSics = texto.includes('Sics - Sistema') || texto.includes('SICS') || texto.includes('sics')
-    if (temSics) {
-      console.warn(`[Sessao] HTML inesperado em "${contexto}" (provavel login) - sessao expirada`)
-      global.phpsessid = null
-      if (typeof global.emitirIPC === 'function') global.emitirIPC('sessao-expirada')
-      throw new Error('Sessao expirada - faca login novamente na aba do sistema')
-    }
-  }
-
-  return texto
-}
-
-async function _bancoSyncConfirmacaoSecundariaInativo(forid) {
-  const id = String(forid || '').trim()
-  if (!id) return { confirmado: false }
-
-  const out = {
-    confirmado: false,
-    fonte: null,
-    getdata: null,
-    editar: null,
-  }
-
-  // 1) getdata: enabled=0 ou trash=1
-  try {
-    const dados = await _acmanagerGetJson({ action: 'fornecedores/getdata', forid: id }, `banco-sync/getdata-confirm(forid=${id})`)
-    const enabled = String(dados?.enabled ?? '').trim()
-    const trash = String(dados?.trash ?? '').trim()
-    out.getdata = { enabled, trash }
-    if (enabled === '0' || trash === '1') {
-      out.confirmado = true
-      out.fonte = 'getdata'
-      return out
-    }
-  } catch (err) {
-    out.getdata = { error: err.message }
-    if (!global.phpsessid) throw err
-  }
-
-  // 2) fornecedores/editar: ausencia do marcador
-  try {
-    const html = await _acmanagerPostTextoBruto({
-      action: 'fornecedores/editar',
-      page: '1',
-      wid: '5',
-      'params[id]': id,
-    }, `banco-sync/fornecedores-editar-confirm(forid=${id})`)
-    const hasMarker = html.includes('fornecedor-editar-servicos')
-    out.editar = { hasMarker }
-    if (!hasMarker) {
-      out.confirmado = true
-      out.fonte = 'editar_sem_marker'
-      return out
-    }
-  } catch (err) {
-    out.editar = { error: err.message }
-    if (!global.phpsessid) throw err
-  }
-
-  return out
 }
 
 function _resumoVazioSync() {
@@ -986,10 +881,13 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
     }, 'banco-sync/relatorio-credenciados', { expectedMarker: 'rpt-credenciados-prest' })
 
     const fornecedores = _extrairFornecedoresRelatorioCredenciados(htmlRel)
-    resumo.fornecedoresTotal = fornecedores.length
-    const desNoSistema = fornecedores.filter(f => f.desativadoNoSistema).length
-    _logBancoSync(`fornecedores carregados: total=${fornecedores.length} desativados_no_sistema=${desNoSistema}`)
-    _emitirBancoSync('banco-sync-status', { stage: 'fornecedores', total: fornecedores.length })
+    const fornecedoresAtivos = fornecedores.filter(f => !f.desativadoNoSistema)
+    const fornecedoresInativos = fornecedores.filter(f => f.desativadoNoSistema)
+
+    // A partir daqui, processamos SOMENTE fornecedores ativos do relatorio.
+    resumo.fornecedoresTotal = fornecedoresAtivos.length
+    _logBancoSync(`fornecedores carregados: total=${fornecedores.length} ativos=${fornecedoresAtivos.length} inativos_no_sistema=${fornecedoresInativos.length}`)
+    _emitirBancoSync('banco-sync-status', { stage: 'fornecedores', total: fornecedoresAtivos.length })
 
     const { caminho, banco } = _carregarBancoCompleto()
     const hashAntes = _calcularHashBanco(banco)
@@ -1016,7 +914,7 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
 
     state.lastReportTotal = reportTotal
     state.lastReportAt = Date.now()
-    state.lastReportDisabledCount = desNoSistema
+    state.lastReportDisabledCount = fornecedoresInativos.length
     stateAlterado = true
 
     const clinicaById = new Map()
@@ -1025,66 +923,24 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
       if (id) clinicaById.set(id, c)
     }
 
-    const reportIds = new Set()
+    const ativosSet = new Set(fornecedoresAtivos.map(f => String(f?.forid || '').trim()).filter(Boolean))
 
-    for (let i = 0; i < fornecedores.length; i++) {
-      const f = fornecedores[i]
+    for (let i = 0; i < fornecedoresAtivos.length; i++) {
+      const f = fornecedoresAtivos[i]
       const forid = String(f?.forid || '').trim()
       if (!forid) continue
 
-      reportIds.add(forid)
-      const statusRel = f.desativadoNoSistema ? 'inactive' : 'active'
+      _emitirBancoSync('banco-sync-status', { stage: 'fornecedor', index: i + 1, total: fornecedoresAtivos.length, forid })
+      _logBancoSyncFor(forid, `inicio (${i + 1}/${fornecedoresAtivos.length}) relatorio=active`)
 
-      _emitirBancoSync('banco-sync-status', { stage: 'fornecedor', index: i + 1, total: fornecedores.length, forid })
-      _logBancoSyncFor(forid, `inicio (${i + 1}/${fornecedores.length}) relatorio=${statusRel}`)
-      _logBancoSyncFor(forid, `STATUS_FONTE relatorio=${statusRel}`)
-
-      const rec = _bancoSyncStateFornecedor(state, forid)
-      if (rec) {
-        rec.lastSeenAt = Date.now()
-        rec.lastLabel = String(f.label || '')
-        rec.lastReportStatus = statusRel
-        if (statusRel === 'active') {
-          rec.consecutiveInactive = 0
-          rec.consecutiveMissing = 0
-        } else {
-          rec.consecutiveInactive = (Number(rec.consecutiveInactive || 0) || 0) + 1
-          rec.consecutiveMissing = 0
-        }
-        stateAlterado = true
-      }
-
-      let fezRequest = false
+      // Regra simples: se esta nos ativos do relatorio, clinica deve estar ativa no app.
+      const clinica = clinicaById.get(forid)
+      if (clinica) _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, true, resumo)
 
       try {
-        if (statusRel === 'active') {
-          const clinica = clinicaById.get(forid)
-          if (clinica) _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, true, resumo)
-
-          fezRequest = true
-          const local = await _bancoSyncProcessarFornecedor(work, forid, { label: f.label }, resumo)
-          resumo.fornecedoresOk++
-          _logBancoSyncFor(forid, `fim ok: itens=${local?.itensTotal ?? 0} novos=${local?.vinculosNovos ?? 0} precos_atualizados=${local?.precosAtualizados ?? 0} suspensos=${local?.itensSuspensos ?? 0} reativados=${local?.itensReativados ?? 0} removidos=${local?.vinculosRemovidos ?? 0}`)
-        } else {
-          const cons = rec ? rec.consecutiveInactive : 0
-          _logBancoSyncFor(forid, `PENDENTE_INATIVAR consecutiveInactive=${cons}/2`)
-
-          const clinica = clinicaById.get(forid)
-          const jaInativaNoBanco = clinica ? (clinica.ativo === false) : false
-          if (!jaInativaNoBanco && cons >= 2) {
-            fezRequest = true
-            const conf = await _bancoSyncConfirmacaoSecundariaInativo(forid)
-            _logBancoSyncFor(forid, `CONFIRMACAO_INATIVO confirmado=${conf.confirmado} fonte=${conf.fonte} getdata=${JSON.stringify(conf.getdata)} editar=${JSON.stringify(conf.editar)}`)
-            if (conf.confirmado) {
-              if (clinica) _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, false, resumo)
-            } else {
-              _logBancoSyncFor(forid, 'INATIVO NAO CONFIRMADO: mantendo estado atual no banco')
-            }
-          }
-
-          resumo.fornecedoresOk++
-          _logBancoSyncFor(forid, 'fim ok: itens=0 novos=0 precos_atualizados=0 suspensos=0 reativados=0 removidos=0')
-        }
+        const local = await _bancoSyncProcessarFornecedor(work, forid, { label: f.label }, resumo)
+        resumo.fornecedoresOk++
+        _logBancoSyncFor(forid, `fim ok: itens=${local?.itensTotal ?? 0} novos=${local?.vinculosNovos ?? 0} precos_atualizados=${local?.precosAtualizados ?? 0} suspensos=${local?.itensSuspensos ?? 0} reativados=${local?.itensReativados ?? 0} removidos=${local?.vinculosRemovidos ?? 0}`)
       } catch (err) {
         resumo.fornecedoresErro++
         _emitirBancoSync('banco-sync-status', { stage: 'fornecedor_erro', forid, error: err.message })
@@ -1092,38 +948,16 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
         if (!global.phpsessid) throw err
       }
 
-      if (fezRequest && i < fornecedores.length - 1) await _sleep(BANCO_SYNC_DELAY_MS)
+      if (i < fornecedoresAtivos.length - 1) await _sleep(BANCO_SYNC_DELAY_MS)
     }
 
-    // Caso C: forid que existe no banco mas nao aparece no relatorio => missing (2 ciclos + confirmacao secundaria)
+    // Regra simples: tudo que NAO estiver na lista de ativos (class='') vira inativo no app.
+    // Isso reduz custo e evita rodar qualquer pipeline pesada para fornecedores inativos.
     for (const c of (Array.isArray(work.clinicas) ? work.clinicas : [])) {
-      const forid = String(c?.id || '').trim()
-      if (!forid) continue
-      if (reportIds.has(forid)) continue
-
-      _logBancoSyncFor(forid, 'STATUS_FONTE relatorio=missing')
-      const rec = _bancoSyncStateFornecedor(state, forid)
-      if (!rec) continue
-
-      rec.lastReportStatus = 'missing'
-      rec.consecutiveMissing = (Number(rec.consecutiveMissing || 0) || 0) + 1
-      rec.consecutiveInactive = 0
-      if (!rec.lastLabel) rec.lastLabel = String(c?.nome || '')
-      stateAlterado = true
-
-      _logBancoSyncFor(forid, `PENDENTE_INATIVAR (missing) consecutiveMissing=${rec.consecutiveMissing}/2`)
-
-      const jaInativaNoBanco = (c.ativo === false)
-      if (!jaInativaNoBanco && rec.consecutiveMissing >= 2) {
-        const conf = await _bancoSyncConfirmacaoSecundariaInativo(forid)
-        _logBancoSyncFor(forid, `CONFIRMACAO_INATIVO (missing) confirmado=${conf.confirmado} fonte=${conf.fonte} getdata=${JSON.stringify(conf.getdata)} editar=${JSON.stringify(conf.editar)}`)
-        if (conf.confirmado) {
-          _bancoSyncAplicarAtivoClinicaSePreciso(c, forid, false, resumo)
-        } else {
-          _logBancoSyncFor(forid, 'INATIVO NAO CONFIRMADO (missing): mantendo estado atual no banco')
-        }
-        await _sleep(BANCO_SYNC_DELAY_MS)
-      }
+      const id = String(c?.id || '').trim()
+      if (!id) continue
+      if (ativosSet.has(id)) continue
+      _bancoSyncAplicarAtivoClinicaSePreciso(c, id, false, resumo)
     }
 
     const hashDepois = _calcularHashBanco(work)
