@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   criarTokenOrcamento: (payload) => ipcRenderer.invoke('orc-token-criar', payload),
   recuperarTokenOrcamento: (token) => ipcRenderer.invoke('orc-token-recuperar', token),
 
+  // ── Credenciados (busca HTTP + escrita no banco) ─────────────
+  credBuscarClinicas: (term) => ipcRenderer.invoke('cred-buscar-clinicas', { term }),
+  credBuscarExames: (payload) => ipcRenderer.invoke('cred-buscar-exames', payload),
+  credFornecedorGetdata: (forid) => ipcRenderer.invoke('cred-fornecedor-getdata', { forid }),
+  credAplicarMudancas: (payload) => ipcRenderer.invoke('cred-aplicar-mudancas', payload),
+  credSyncEnderecos: (forid) => ipcRenderer.invoke('cred-sync-enderecos', { forid }),
+
   // ── WhatsApp ────────────────────────────────────────────────
 
   // Recebe QR Code bruto do Baileys para renderizar em canvas
@@ -74,6 +81,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Notifica quando a sessão é reestabelecida
   onSessaoOk: (callback) => {
     ipcRenderer.on('sessao-ok', () => callback())
+  },
+
+  // ── Sync automático do banco (main -> renderer) ─────────────────────────
+  onBancoSyncStatus: (callback) => {
+    ipcRenderer.on('banco-sync-status', (_, payload) => callback(payload))
+  },
+  onBancoSyncBloqueio: (callback) => {
+    ipcRenderer.on('banco-sync-bloqueio', (_, payload) => callback(payload))
+  },
+  onBancoSyncAtualizado: (callback) => {
+    ipcRenderer.on('banco-sync-atualizado', (_, payload) => callback(payload))
   },
 
   // ── App ────────────────────────────────────────────────────
