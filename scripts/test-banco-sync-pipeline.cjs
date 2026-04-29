@@ -211,7 +211,7 @@ async function main() {
     })
     const evidRef = (r.text.match(/\bref=['"]\d+['"]/gi) || []).length
     const evidBtn = (r.text.match(/\bbtn-success\b|\bbtn-danger\b/gi) || []).length
-    console.log(`[TestePipeline] forid=${forid} http=${r.status} bytes=${Buffer.byteLength(r.text, 'utf8')} marker=${r.text.includes('fornecedor-editar-servicos')} evidRef=${evidRef} evidBtn=${evidBtn}`)
+    console.log(`[TestePipeline] forid=${forid} http=${r.status} bytes=${Buffer.byteLength(r.text, 'utf8')} markerServicos=${r.text.includes('fornecedor-editar-servicos')} markerRef=${r.text.includes('fornecedor-editar-ref')} markerFornMain=${r.text.includes('forn-main')} evidRef=${evidRef} evidBtn=${evidBtn}`)
     try {
       const itens = extrairItensFornecedorEditar(r.text)
       console.log(`[TestePipeline] forid=${forid} itens_parseados=${itens.length}`)
@@ -225,4 +225,3 @@ main().catch(err => {
   console.error('[TestePipeline] ERRO fatal:', err.message)
   process.exit(1)
 })
-

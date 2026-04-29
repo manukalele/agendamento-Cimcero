@@ -697,13 +697,29 @@ async function _bancoSyncProcessarFornecedor(work, forid, opts = {}, resumo) {
     page: '1',
     wid: '5',
     'params[id]': clinicaId,
-  }, `banco-sync/fornecedores-editar(forid=${clinicaId})`, { expectedMarker: 'fornecedor-editar-servicos' })
+  }, `banco-sync/fornecedores-editar(forid=${clinicaId})`, {
+    // Para fornecedores com 0 itens, o tbody pode nao existir. Esse hidden input costuma existir na tela de editar.
+    expectedMarker: 'fornecedor-editar-ref',
+  })
 
-  const itens = _extrairItensFornecedorEditar(htmlEditar)
-  // Guardrail contra parser quebrado: se o HTML tem sinais claros de itens, mas o parser retornou 0, aborta.
+  let itens = []
+  try {
+    itens = _extrairItensFornecedorEditar(htmlEditar)
+  } catch (err) {
+    const msg = String(err?.message || '')
+    if (msg.includes('tbody fornecedor-editar-servicos nao encontrado')) {
+      itens = []
+      _logBancoSyncFor(clinicaId, 'ITENS HTML: tbody ausente; tratando como 0 itens')
+    } else {
+      throw err
+    }
+  }
+  // Guardrail contra parser quebrado: sÃ³ faz sentido quando o HTML realmente contÃ©m a Ã¡rea de serviÃ§os.
+  // Em fornecedores com 0 itens, o tbody pode nÃ£o existir e o HTML pode conter outros botÃµes/classes.
+  const temAreaServicos = htmlEditar.includes('fornecedor-editar-servicos')
   const evidRef = (htmlEditar.match(/\bref=['"]\d+['"]/gi) || []).length
   const evidBtn = (htmlEditar.match(/\bbtn-success\b|\bbtn-danger\b/gi) || []).length
-  if (itens.length === 0 && (evidRef > 0 || evidBtn > 0)) {
+  if (temAreaServicos && itens.length === 0 && (evidRef > 0 || evidBtn > 0)) {
     throw new Error(`PARSE FALHOU em fornecedores/editar: itens=0 mas html indica itens (refs=${evidRef} btns=${evidBtn})`)
   }
   local.itensTotal = itens.length
