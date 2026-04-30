@@ -1710,9 +1710,11 @@ function _construirMunicipiosDisponiveis() {
 
 function _obterEstabelecimentosPorMunicipio(origem = null) {
   const listaBase = Array.isArray(origem) ? origem : (Array.isArray(banco?.clinicas) ? banco.clinicas : [])
+  // Regra: clínicas com `ativo:false` não devem aparecer nos searchboxes.
+  const listaAtiva = listaBase.filter(c => c && c.ativo !== false)
   return municipioSelecionado === MUNICIPIO_TODOS
-    ? listaBase
-    : listaBase.filter(c => String(c?.cidade ?? '') === String(municipioSelecionado))
+    ? listaAtiva
+    : listaAtiva.filter(c => String(c?.cidade ?? '') === String(municipioSelecionado))
 }
 
 function _itensPrestadoresPorMunicipio(origem = null) {
