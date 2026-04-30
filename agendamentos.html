@@ -3290,11 +3290,10 @@ function criarCampoExamesOrcamento() {
     }
 
     base.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' }))
-    const itensLabClassificados = base.filter(i => i.grupo === 'lab')
-    // Fallback: alguns bancos não preenchem `tipo=lab`.
-    // Nesses casos, o campo laboratorial deve continuar utilizável.
-    itensLab = itensLabClassificados.length ? itensLabClassificados : [...base]
-    itensClinica = base.filter(i => i.grupo !== 'lab')
+    // QoL: o formato atual não restringe exames por tipo no orçamento.
+    // Ambos os searchboxes (lab/clinica) devem listar todos os exames disponíveis.
+    itensLab = [...base]
+    itensClinica = [...base]
   }
 
   montarItensBase()
