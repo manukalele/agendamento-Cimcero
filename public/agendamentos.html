@@ -2107,65 +2107,54 @@ function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
   })
   const nomesSolicitados = [...qtdePorNome.keys()]
 
-  // Separar exames por tipo
-  const examesLab     = nomesSolicitados.filter(n => _tipoExame(n) === 'lab')
-  const examesClinica = nomesSolicitados.filter(n => _tipoExame(n) !== 'lab')
+  // Regra nova: NÃO separar por "tipo do exame".
+  // Um exame pode existir em laboratórios e clínicas; o orçamento deve considerar ambos.
+  const exames = Array.isArray(banco?.exames) ? banco.exames : []
+  const examePorNome = new Map(exames.map(e => [String(e?.nome_parametro || '').trim(), e]))
 
   const resultado = []
+  for (const clinica of (Array.isArray(clinicasAlvo) ? clinicasAlvo : [])) {
+    if (!clinica) continue
+    const clinicaId = String(clinica.id ?? '').trim()
+    if (!clinicaId) continue
 
-  // ?? Bloco LAB: mostrar apenas labs que tem TODOS os exames lab ??
-  if (examesLab.length > 0) {
-    const labs = clinicasAlvo.filter(c => c.tipo === 'lab')
-    for (const clinica of labs) {
-      const disponiveis = []
-      for (const nomeParam of examesLab) {
-        const qtde = qtdePorNome.get(nomeParam) || 1
-        const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
-        if (!exame) continue
-        const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(clinica.id))
-        if (entrada) disponiveis.push({
-          nome_parametro: exame.nome_parametro, nome_real: exame.nome_real,
-          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco, qtde
-        })
-      }
-      // Se inclui lab se tiver TODOS os exames lab disponiveis
-      if (disponiveis.length === examesLab.length) {
-        const total = disponiveis.reduce((acc, e) => acc + (Number(e.preco || 0) * (Number(e.qtde || 1))), 0)
-        resultado.push({
-          clinica_id: clinica.id, clinica_nome: clinica.nome, tipo: 'lab',
-          disponiveis, indisponiveis: [], total, todosExamesLab: true
-        })
-      }
-    }
-  }
+    const disponiveis = []
+    for (const nomeParam of nomesSolicitados) {
+      const qtde = qtdePorNome.get(nomeParam) || 1
+      const exame = examePorNome.get(String(nomeParam || '').trim())
+      if (!exame) continue
 
-  // ?? Bloco CLe?NICA: comportamento original (item a item, com indisponiveis) ??
-  if (examesClinica.length > 0) {
-    const clinicas = clinicasAlvo.filter(c => c.tipo !== 'lab')
-    for (const clinica of clinicas) {
-      const disponiveis = []
-      for (const exame of banco.exames) {
-        if (!examesClinica.includes(exame.nome_parametro)) continue
-        const qtde = qtdePorNome.get(exame.nome_parametro) || 1
-        const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(clinica.id))
-        if (entrada) disponiveis.push({
-          nome_parametro: exame.nome_parametro, nome_real: exame.nome_real,
-          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco, qtde
-        })
-      }
-      const nomesDisponiveis = disponiveis.map(e => e.nome_parametro)
-      const indisponiveis    = examesClinica
-        .filter(n => !nomesDisponiveis.includes(n))
-        .map(n => {
-          const exame = banco.exames.find(e => e.nome_parametro === n)
-          return exame?.nome_real || n
-        })
-      const total = disponiveis.reduce((acc, e) => acc + (Number(e.preco || 0) * (Number(e.qtde || 1))), 0)
-      resultado.push({
-        clinica_id: clinica.id, clinica_nome: clinica.nome, tipo: 'clinica',
-        disponiveis, indisponiveis, total, todosExamesLab: false
+      const listaClin = Array.isArray(exame?.clinicas) ? exame.clinicas : []
+      // Se um vínculo estiver marcado como suspenso no banco (enabled:false), ele não conta como disponível.
+      const entrada = listaClin.find(c =>
+        String(c?.clinica_id ?? '') === clinicaId && c?.enabled !== false
+      )
+      if (!entrada) continue
+
+      disponiveis.push({
+        nome_parametro: exame.nome_parametro,
+        nome_real: exame.nome_real,
+        id_exame_clinica: entrada.id_exame_clinica,
+        preco: entrada.preco,
+        qtde
       })
     }
+
+    const nomesDisponiveis = new Set(disponiveis.map(e => String(e?.nome_parametro || '').trim()).filter(Boolean))
+    const indisponiveis = nomesSolicitados
+      .filter(n => !nomesDisponiveis.has(String(n || '').trim()))
+      .map(n => (examePorNome.get(String(n || '').trim())?.nome_real) || n)
+
+    const total = disponiveis.reduce((acc, e) => acc + (Number(e.preco || 0) * (Number(e.qtde || 1))), 0)
+    resultado.push({
+      clinica_id: clinica.id,
+      clinica_nome: clinica.nome,
+      tipo: clinica.tipo === 'lab' ? 'lab' : 'clinica',
+      disponiveis,
+      indisponiveis,
+      total,
+      todosExamesLab: false
+    })
   }
 
   return resultado
@@ -2196,6 +2185,7 @@ function formatarMensagem(orcamento, nomePaciente, selecoesVisuais = [], selecoe
   let labs = []
   if (examesLabSet.size > 0) {
     labs = orcList
+      .filter(item => item.tipo === 'lab')
       .map(item => {
         const porNome = new Map()
         for (const e of (Array.isArray(item?.disponiveis) ? item.disponiveis : [])) {
@@ -2376,7 +2366,7 @@ function renderizarOrcamento(container, orcamento, nomePaciente, onAgendar, aler
     container.appendChild(secAlerta)
   }
 
-  const labs    = orcamento.filter(item => item.tipo === 'lab')
+  const labs    = orcamento.filter(item => item.tipo === 'lab' && item.disponiveis.length)
   const clinicas = orcamento
     .filter(item => item.tipo !== 'lab')
     .slice()
@@ -3257,7 +3247,6 @@ function criarCampoExamesOrcamento() {
     for (const itemCatalogo of catalogoMunicipio) {
       const chave = String(itemCatalogo?.nome_parametro || '').trim()
       if (!chave) continue
-      if (aliasMascaradosAtivos.has(chave)) continue
 
       const item = {
         value: chave,
@@ -3285,7 +3274,8 @@ function criarCampoExamesOrcamento() {
         value: mask.value,
         label: `${mask.nome}${estimado > 0 ? ` - ${formatarMoeda(estimado)}` : ''}`,
         grupo: grupoMask,
-        especial: true
+        especial: true,
+        maskExames: Array.isArray(examesAtivos) ? [...examesAtivos] : []
       }
       base.push(item)
       itemByValue.set(item.value, item)
@@ -3325,7 +3315,28 @@ function criarCampoExamesOrcamento() {
 
     const atualizarItens = () => {
       const globais = getSelecionadosGlobais()
-      sb.setItems(itensLocais.filter(i => !globais.has(i.value)))
+      const selecoes = [...selecionadosLab, ...selecionadosClinica]
+      const examesJaSelecionados = new Set()
+      const examesViaMascara = new Set()
+      selecoes.forEach(v => {
+        const val = String(v || '').trim()
+        if (!val) return
+        const exp = _expandirSelecaoOrcParaExames(val)
+        exp.forEach(nome => examesJaSelecionados.add(String(nome || '').trim()))
+        if (_isMaskSelectionValue(val)) exp.forEach(nome => examesViaMascara.add(String(nome || '').trim()))
+      })
+      sb.setItems(itensLocais.filter(i => {
+        const value = String(i?.value || '').trim()
+        if (!value) return false
+        if (globais.has(value)) return false
+        // Se uma máscara já está selecionada, seus exames não devem ser adicionados em duplicidade.
+        if (!_isMaskSelectionValue(value) && examesViaMascara.has(value)) return false
+        // Se já existem exames selecionados, não permitir máscara que se sobreponha (evita duplicidade).
+        if (_isMaskSelectionValue(value) && Array.isArray(i?.maskExames) && i.maskExames.some(n => examesJaSelecionados.has(String(n || '').trim()))) {
+          return false
+        }
+        return true
+      }))
     }
 
     const criarLinha = (valorSelecao) => {
@@ -3452,8 +3463,6 @@ function criarCampoExamesOrcamento() {
     const raw = String(value || '').trim()
     if (!raw) return null
     if (_isMaskSelectionValue(raw)) return raw
-    const viaMascara = aliasMascaradosAtivos.get(raw) || _orcMascaraCtx.aliasToMaskValue.get(raw)
-    if (viaMascara && itemByValue.has(viaMascara)) return viaMascara
     if (itemByValue.has(raw)) return raw
     return raw
   }
