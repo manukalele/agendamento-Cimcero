@@ -419,8 +419,25 @@
     .codigo-row input:focus { z-index: 1; }
     .label-lg { font-size: .7rem !important; }
 
-    .paciente-info { background: #f0f9ff; border: 1px solid #bae6fd; padding: .75rem .9rem; display: none; border-radius: 5px; }
-    .paciente-info.visivel { display: block; }
+.paciente-info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: .75rem .9rem;
+  border-radius: 5px;
+
+  /* QoL: reserva espaco fixo para nao "pular" a UI ao carregar/limpar dados do paciente */
+  display: block;
+  min-height: 6.25rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+.paciente-info.visivel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
     .paciente-info-linha { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
     .paciente-info-dados { display: flex; flex-direction: column; gap: .18rem; flex: 1; }
     .pi-nome   { font-family: var(--mono); font-size: .92rem; font-weight: 600; color: var(--text); }
