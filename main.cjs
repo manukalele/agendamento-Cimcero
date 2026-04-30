@@ -599,6 +599,22 @@ function _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, novoAtivo, resum
   return true
 }
 
+function _bancoSyncSetAtivoClinica(clinica, forid, novoAtivo, resumo) {
+  if (!clinica || typeof clinica !== 'object') return false
+  const atualBool = (clinica.ativo !== false)
+  const desejado = !!novoAtivo
+  // Para manter o banco consistente, gravamos explicitamente true/false.
+  // Logamos apenas quando o "estado booleano" mudou.
+  clinica.ativo = desejado
+  if (atualBool === desejado) return false
+  if (resumo && typeof resumo === 'object') {
+    if (desejado) resumo.clinicasAtivadas++
+    else resumo.clinicasDesativadas++
+  }
+  _logBancoSyncFor(forid, `CLINICA ATIVO ALTERADO: ${atualBool} -> ${desejado} (${clinica.nome || '-'})`)
+  return true
+}
+
 function _resumoVazioSync() {
   return {
     fornecedoresTotal: 0,
@@ -607,12 +623,15 @@ function _resumoVazioSync() {
     clinicasNovas: 0,
     clinicasAtivadas: 0,
     clinicasDesativadas: 0,
+    clinicasRemovidas: 0,
     enderecosAtualizados: 0,
     vinculosNovos: 0,
     precosAtualizados: 0,
     itensSuspensos: 0,
     itensReativados: 0,
     vinculosRemovidos: 0,
+    vinculosRemovidosPorClinicaRemovida: 0,
+    examesRemovidosSemClinicas: 0,
   }
 }
 
@@ -899,6 +918,7 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
     const fornecedores = _extrairFornecedoresRelatorioCredenciados(htmlRel)
     const fornecedoresAtivos = fornecedores.filter(f => !f.desativadoNoSistema)
     const fornecedoresInativos = fornecedores.filter(f => f.desativadoNoSistema)
+    const reportSet = new Set(fornecedores.map(f => String(f?.forid || '').trim()).filter(Boolean))
 
     // A partir daqui, processamos SOMENTE fornecedores ativos do relatorio.
     resumo.fornecedoresTotal = fornecedoresAtivos.length
@@ -933,6 +953,46 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
     state.lastReportDisabledCount = fornecedoresInativos.length
     stateAlterado = true
 
+    // Regra: se o forid não aparece no relatório (nem ativo nem text-danger), exclui do banco.
+    // Isso evita acumular bloat de clínicas removidas do sistema.
+    const removidosPorAusencia = new Set()
+    if (Array.isArray(work.clinicas) && work.clinicas.length) {
+      const antes = work.clinicas.length
+      work.clinicas = work.clinicas.filter(c => {
+        const id = String(c?.id || '').trim()
+        if (!id) return false
+        if (reportSet.has(id)) return true
+        removidosPorAusencia.add(id)
+        resumo.clinicasRemovidas++
+        _logBancoSyncFor(id, `CLINICA REMOVIDA: ausente no relatorio`)
+        return false
+      })
+      const depois = work.clinicas.length
+      if (antes !== depois) {
+        // Limpa vínculos de exames que apontam para clínicas removidas
+        let removidosVinc = 0
+        let removidosExames = 0
+        work.exames = (Array.isArray(work.exames) ? work.exames : [])
+          .map(ex => {
+            if (!ex || typeof ex !== 'object') return ex
+            const lista = Array.isArray(ex.clinicas) ? ex.clinicas : []
+            const filtrada = lista.filter(v => !removidosPorAusencia.has(String(v?.clinica_id ?? '').trim()))
+            removidosVinc += (lista.length - filtrada.length)
+            ex.clinicas = filtrada
+            return ex
+          })
+          .filter(ex => {
+            const keep = !!(ex && typeof ex === 'object' && Array.isArray(ex.clinicas) && ex.clinicas.length > 0)
+            if (!keep) removidosExames++
+            return keep
+          })
+        resumo.vinculosRemovidosPorClinicaRemovida += removidosVinc
+        resumo.examesRemovidosSemClinicas += removidosExames
+        if (removidosVinc) _logBancoSync(`VINCULOS REMOVIDOS (clinicas ausentes): ${removidosVinc}`)
+        if (removidosExames) _logBancoSync(`EXAMES REMOVIDOS (sem clinicas): ${removidosExames}`)
+      }
+    }
+
     const clinicaById = new Map()
     for (const c of (Array.isArray(work.clinicas) ? work.clinicas : [])) {
       const id = String(c?.id || '').trim()
@@ -952,7 +1012,7 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
 
       // Regra simples: se esta nos ativos do relatorio, clinica deve estar ativa no app.
       const clinica = clinicaById.get(forid)
-      if (clinica) _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, true, resumo)
+      if (clinica) _bancoSyncSetAtivoClinica(clinica, forid, true, resumo)
 
       try {
         const local = await _bancoSyncProcessarFornecedor(work, forid, { label: f.label }, resumo)
@@ -974,7 +1034,7 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
     for (const forid of Array.from(inativosSet)) {
       const clinica = clinicaById.get(forid)
       if (!clinica) continue
-      _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, false, resumo)
+      _bancoSyncSetAtivoClinica(clinica, forid, false, resumo)
     }
 
     const hashDepois = _calcularHashBanco(work)
