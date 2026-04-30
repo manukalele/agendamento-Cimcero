@@ -74,7 +74,7 @@ let _bancoBackupYmd = null
 // ─────────────────────────────────────────────────────────────
 // Sync automático do banco (1x por hora, em background)
 // ─────────────────────────────────────────────────────────────
-const BANCO_SYNC_INTERVAL_MS = 60 * 60 * 1000
+const BANCO_SYNC_INTERVAL_MS = 90 * 60 * 1000
 const BANCO_SYNC_DELAY_MS = 1200
 let _bancoSyncRodando = false
 let _bancoSyncUltimoFimMs = 0
