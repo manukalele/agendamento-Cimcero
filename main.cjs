@@ -940,6 +940,7 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
     }
 
     const ativosSet = new Set(fornecedoresAtivos.map(f => String(f?.forid || '').trim()).filter(Boolean))
+    const inativosSet = new Set(fornecedoresInativos.map(f => String(f?.forid || '').trim()).filter(Boolean))
 
     for (let i = 0; i < fornecedoresAtivos.length; i++) {
       const f = fornecedoresAtivos[i]
@@ -967,13 +968,13 @@ async function _bancoSyncRodar({ motivo = 'interval' } = {}) {
       if (i < fornecedoresAtivos.length - 1) await _sleep(BANCO_SYNC_DELAY_MS)
     }
 
-    // Regra simples: tudo que NAO estiver na lista de ativos (class='') vira inativo no app.
-    // Isso reduz custo e evita rodar qualquer pipeline pesada para fornecedores inativos.
-    for (const c of (Array.isArray(work.clinicas) ? work.clinicas : [])) {
-      const id = String(c?.id || '').trim()
-      if (!id) continue
-      if (ativosSet.has(id)) continue
-      _bancoSyncAplicarAtivoClinicaSePreciso(c, id, false, resumo)
+    // Regra simples (classificação): apenas o que vier como text-danger no relatório
+    // vira inativo no app. Itens "sumidos" do relatório não sofrem alteração aqui
+    // (evita falso-positivo por HTML incompleto/sessão instável).
+    for (const forid of Array.from(inativosSet)) {
+      const clinica = clinicaById.get(forid)
+      if (!clinica) continue
+      _bancoSyncAplicarAtivoClinicaSePreciso(clinica, forid, false, resumo)
     }
 
     const hashDepois = _calcularHashBanco(work)
