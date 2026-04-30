@@ -469,6 +469,13 @@
                  border: 1px solid var(--border); padding: .42rem .65rem; border-radius: 4px; }
     .exame-row-nome  { flex: 1; font-family: var(--mono); font-size: .85rem; color: var(--text);
                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .exame-stepper { display: inline-flex; align-items: center; gap: .18rem; flex-shrink: 0; }
+    .exame-stepper .qtde-btn { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
+                              background: #fff; color: var(--text); font-family: var(--mono);
+                              font-size: .8rem; line-height: 1; cursor: pointer; }
+    .exame-stepper .qtde-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .exame-stepper .qtde-btn:disabled { opacity: .35; cursor: default; }
+    .exame-stepper .qtde-val { min-width: 18px; text-align: center; font-family: var(--mono); font-size: .8rem; color: var(--text); }
     .exame-row-valor { font-family: var(--mono); font-size: .8rem; color: var(--ok); flex-shrink: 0; font-weight: 500; }
     .exame-row-qtde  { width: 40px; background: #fff; border: 1px solid var(--border);
                        color: var(--text); font-family: var(--mono); font-size: .82rem;
@@ -2078,9 +2085,29 @@ function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
     ? banco.clinicas.filter(c => String(c.id) === String(clinicaFiltroId))
     : (clinicasBase || banco.clinicas)
 
+  // Aceita:
+  // - ['HEMOGRAMA', ...]
+  // - [{ nome_parametro:'HEMOGRAMA', qtde:2 }, ...]
+  const qtdePorNome = new Map()
+  ;(Array.isArray(examesSolicitados) ? examesSolicitados : []).forEach(item => {
+    if (typeof item === 'string') {
+      const k = String(item || '').trim()
+      if (!k) return
+      qtdePorNome.set(k, (qtdePorNome.get(k) || 0) + 1)
+      return
+    }
+    if (item && typeof item === 'object') {
+      const k = String(item.nome_parametro || item.nome || item.value || '').trim()
+      if (!k) return
+      const q = Math.max(1, Math.min(99, parseInt(item.qtde) || 1))
+      qtdePorNome.set(k, (qtdePorNome.get(k) || 0) + q)
+    }
+  })
+  const nomesSolicitados = [...qtdePorNome.keys()]
+
   // Separar exames por tipo
-  const examesLab     = examesSolicitados.filter(n => _tipoExame(n) === 'lab')
-  const examesClinica = examesSolicitados.filter(n => _tipoExame(n) !== 'lab')
+  const examesLab     = nomesSolicitados.filter(n => _tipoExame(n) === 'lab')
+  const examesClinica = nomesSolicitados.filter(n => _tipoExame(n) !== 'lab')
 
   const resultado = []
 
@@ -2090,17 +2117,18 @@ function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
     for (const clinica of labs) {
       const disponiveis = []
       for (const nomeParam of examesLab) {
+        const qtde = qtdePorNome.get(nomeParam) || 1
         const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
         if (!exame) continue
         const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(clinica.id))
         if (entrada) disponiveis.push({
           nome_parametro: exame.nome_parametro, nome_real: exame.nome_real,
-          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco
+          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco, qtde
         })
       }
       // Se inclui lab se tiver TODOS os exames lab disponiveis
       if (disponiveis.length === examesLab.length) {
-        const total = disponiveis.reduce((acc, e) => acc + e.preco, 0)
+        const total = disponiveis.reduce((acc, e) => acc + (Number(e.preco || 0) * (Number(e.qtde || 1))), 0)
         resultado.push({
           clinica_id: clinica.id, clinica_nome: clinica.nome, tipo: 'lab',
           disponiveis, indisponiveis: [], total, todosExamesLab: true
@@ -2116,10 +2144,11 @@ function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
       const disponiveis = []
       for (const exame of banco.exames) {
         if (!examesClinica.includes(exame.nome_parametro)) continue
+        const qtde = qtdePorNome.get(exame.nome_parametro) || 1
         const entrada = exame.clinicas.find(c => String(c.clinica_id) === String(clinica.id))
         if (entrada) disponiveis.push({
           nome_parametro: exame.nome_parametro, nome_real: exame.nome_real,
-          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco
+          id_exame_clinica: entrada.id_exame_clinica, preco: entrada.preco, qtde
         })
       }
       const nomesDisponiveis = disponiveis.map(e => e.nome_parametro)
@@ -2129,7 +2158,7 @@ function calcularOrcamento(examesSolicitados, clinicaFiltroId, clinicasBase) {
           const exame = banco.exames.find(e => e.nome_parametro === n)
           return exame?.nome_real || n
         })
-      const total = disponiveis.reduce((acc, e) => acc + e.preco, 0)
+      const total = disponiveis.reduce((acc, e) => acc + (Number(e.preco || 0) * (Number(e.qtde || 1))), 0)
       resultado.push({
         clinica_id: clinica.id, clinica_nome: clinica.nome, tipo: 'clinica',
         disponiveis, indisponiveis, total, todosExamesLab: false
@@ -3061,15 +3090,31 @@ function criarCampoExamesClinica(onValorChange, tipoFiltro) {
   const adicionarLinhaExame = (entry) => {
     const row = document.createElement('div'); row.className = 'exame-row'; row.dataset.pid = entry.pid
     const ne = document.createElement('span'); ne.className = 'exame-row-nome'; ne.textContent = entry.nome; ne.title = entry.nome
+    const stepper = document.createElement('span'); stepper.className = 'exame-stepper'
+    const btnMenos = document.createElement('button'); btnMenos.type = 'button'; btnMenos.className = 'qtde-btn'; btnMenos.textContent = '-'
+    const qtdeVal = document.createElement('span'); qtdeVal.className = 'qtde-val'; qtdeVal.textContent = String(entry.qtde || 1)
+    const btnMais = document.createElement('button'); btnMais.type = 'button'; btnMais.className = 'qtde-btn'; btnMais.textContent = '+'
     const ve = document.createElement('span'); ve.className = 'exame-row-valor'; ve.textContent = formatarMoeda(entry.valor)
-    const qi = document.createElement('input'); qi.type = 'number'; qi.className = 'exame-row-qtde'; qi.value = 1; qi.min = 1; qi.max = 99
-    qi.addEventListener('change', () => { entry.qtde = Math.max(1, parseInt(qi.value) || 1); qi.value = entry.qtde; if (onValorChange) onValorChange() })
     const br = document.createElement('button'); br.className = 'btn-rem'; br.textContent = 'x'; br.type = 'button'
     br.addEventListener('click', () => {
       selecionados.splice(selecionados.findIndex(s => s.pid === entry.pid), 1)
       row.remove(); atualizarItensSb(); if (onValorChange) onValorChange()
     })
-    row.appendChild(ne); row.appendChild(ve); row.appendChild(qi); row.appendChild(br)
+
+    const syncStepper = () => {
+      const q = Math.max(1, Math.min(99, parseInt(entry.qtde) || 1))
+      entry.qtde = q
+      qtdeVal.textContent = String(q)
+      btnMenos.disabled = q <= 1
+      btnMais.disabled = q >= 99
+      row.dataset.qtde = String(q)
+    }
+    btnMenos.addEventListener('click', () => { entry.qtde = Math.max(1, (entry.qtde || 1) - 1); syncStepper(); if (onValorChange) onValorChange() })
+    btnMais.addEventListener('click', () => { entry.qtde = Math.min(99, (entry.qtde || 1) + 1); syncStepper(); if (onValorChange) onValorChange() })
+    stepper.appendChild(btnMenos); stepper.appendChild(qtdeVal); stepper.appendChild(btnMais)
+    syncStepper()
+
+    row.appendChild(ne); row.appendChild(stepper); row.appendChild(ve); row.appendChild(br)
     lista.appendChild(row)
   }
 
@@ -3083,9 +3128,8 @@ function criarCampoExamesClinica(onValorChange, tipoFiltro) {
   }
 
   btnAdd.addEventListener('click', adicionarExame)
-  sb.querySelector('input[type="text"]').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && ref.itemPendente) { e.preventDefault(); adicionarExame() }
-  })
+  // QoL: clicar no resultado do searchbox já adiciona automaticamente
+  sb.onConfirm(() => adicionarExame())
 
   container.getExames  = () => selecionados.map(s => ({ pid: Number(s.pid), qtde: s.qtde, valor: s.valor, nome: s.nome }))
   container.getTotal   = () => selecionados.reduce((acc, s) => acc + (s.valor * s.qtde), 0)
@@ -3182,6 +3226,7 @@ function criarCampoExamesOrcamento() {
 
   const selecionadosLab = []
   const selecionadosClinica = []
+  const qtdePorSelecao = new Map() // value (mask/exame) -> qtde
   let itemByValue = new Map()
   let itensLab = []
   let itensClinica = []
@@ -3287,11 +3332,27 @@ function criarCampoExamesOrcamento() {
       row.className = 'exame-row'
       row.dataset.value = String(valorSelecao)
 
+      const valorKey = String(valorSelecao || '').trim()
+      if (valorKey && !qtdePorSelecao.has(valorKey)) qtdePorSelecao.set(valorKey, 1)
+
       const nomeExibido = _labelSelecaoOrc(valorSelecao)
       const ne = document.createElement('span')
       ne.className = 'exame-row-nome'
       ne.textContent = nomeExibido
       ne.title = nomeExibido
+
+      const stepper = document.createElement('span')
+      stepper.className = 'exame-stepper'
+      const btnMenos = document.createElement('button')
+      btnMenos.type = 'button'
+      btnMenos.className = 'qtde-btn'
+      btnMenos.textContent = '-'
+      const qtdeVal = document.createElement('span')
+      qtdeVal.className = 'qtde-val'
+      const btnMais = document.createElement('button')
+      btnMais.type = 'button'
+      btnMais.className = 'qtde-btn'
+      btnMais.textContent = '+'
 
       const preco = _precoEstimadoSelecaoOrc(valorSelecao)
       const ve = document.createElement('span')
@@ -3305,11 +3366,40 @@ function criarCampoExamesOrcamento() {
       br.addEventListener('click', () => {
         const idx = selecionados.indexOf(valorSelecao)
         if (idx >= 0) selecionados.splice(idx, 1)
+        if (valorKey) qtdePorSelecao.delete(valorKey)
         row.remove()
         atualizarListasGlobais()
+        container.dispatchEvent(new Event('qol-change'))
       })
 
+      const syncStepper = () => {
+        const atual = qtdePorSelecao.get(valorKey) ?? 1
+        const q = Math.max(1, Math.min(99, parseInt(atual) || 1))
+        qtdePorSelecao.set(valorKey, q)
+        qtdeVal.textContent = String(q)
+        btnMenos.disabled = q <= 1
+        btnMais.disabled = q >= 99
+        row.dataset.qtde = String(q)
+      }
+      btnMenos.addEventListener('click', () => {
+        const q0 = qtdePorSelecao.get(valorKey) ?? 1
+        qtdePorSelecao.set(valorKey, Math.max(1, (parseInt(q0) || 1) - 1))
+        syncStepper()
+        container.dispatchEvent(new Event('qol-change'))
+      })
+      btnMais.addEventListener('click', () => {
+        const q0 = qtdePorSelecao.get(valorKey) ?? 1
+        qtdePorSelecao.set(valorKey, Math.min(99, (parseInt(q0) || 1) + 1))
+        syncStepper()
+        container.dispatchEvent(new Event('qol-change'))
+      })
+      stepper.appendChild(btnMenos)
+      stepper.appendChild(qtdeVal)
+      stepper.appendChild(btnMais)
+      syncStepper()
+
       row.appendChild(ne)
+      row.appendChild(stepper) // botões +/- devem ficar à esquerda do preço
       row.appendChild(ve)
       row.appendChild(br)
       lista.appendChild(row)
@@ -3330,15 +3420,12 @@ function criarCampoExamesOrcamento() {
       ref.itemPendente = null
       btnAdd.disabled = true
       sb.focar()
+      container.dispatchEvent(new Event('qol-change'))
     }
 
     btnAdd.addEventListener('click', adicionar)
-    sb.querySelector('input[type="text"]').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && ref.itemPendente) {
-        e.preventDefault()
-        adicionar()
-      }
-    })
+    // QoL: clicar no resultado do searchbox já adiciona automaticamente
+    sb.onConfirm(() => adicionar())
 
     wrap.appendChild(inner)
     return {
@@ -3398,10 +3485,12 @@ function criarCampoExamesOrcamento() {
   const limparSelecoes = () => {
     selecionadosLab.length = 0
     selecionadosClinica.length = 0
+    qtdePorSelecao.clear()
     grupoLab.limparVisual()
     grupoClinica.limparVisual()
     grupoLab.atualizarItens()
     grupoClinica.atualizarItens()
+    container.dispatchEvent(new Event('qol-change'))
   }
 
   const restaurarSelecoes = (valores) => {
@@ -3421,6 +3510,60 @@ function criarCampoExamesOrcamento() {
     lab: [...selecionadosLab],
     clinica: [...selecionadosClinica]
   })
+  container.getQtdePorSelecao = () => {
+    const out = {}
+    for (const v of getSelecoes()) {
+      const k = String(v || '').trim()
+      if (!k) continue
+      out[k] = qtdePorSelecao.get(k) ?? 1
+    }
+    return out
+  }
+  container.restaurarQtdePorSelecao = (mapa) => {
+    const src = (mapa && typeof mapa === 'object') ? mapa : {}
+    for (const v of getSelecoes()) {
+      const k = String(v || '').trim()
+      if (!k) continue
+      const q = Math.max(1, Math.min(99, parseInt(src[k]) || 1))
+      qtdePorSelecao.set(k, q)
+    }
+    container.querySelectorAll('.exame-row').forEach(row => {
+      const k = String(row.dataset.value || '').trim()
+      if (!k) return
+      row.dataset.qtde = String(qtdePorSelecao.get(k) ?? 1)
+      const valEl = row.querySelector('.exame-stepper .qtde-val')
+      const bMenos = row.querySelector('.exame-stepper .qtde-btn')
+      const btns = row.querySelectorAll('.exame-stepper .qtde-btn')
+      if (valEl) valEl.textContent = String(qtdePorSelecao.get(k) ?? 1)
+      if (btns && btns.length === 2) {
+        const q = qtdePorSelecao.get(k) ?? 1
+        btns[0].disabled = q <= 1
+        btns[1].disabled = q >= 99
+      } else if (bMenos) {
+        // noop (fallback)
+      }
+    })
+    container.dispatchEvent(new Event('qol-change'))
+  }
+
+  container.getExamesDetalhados = () => {
+    const detalhes = []
+    const acc = new Map() // nome_parametro -> qtde
+    for (const sel of getSelecoes()) {
+      const selKey = String(sel || '').trim()
+      if (!selKey) continue
+      const qtdeSel = qtdePorSelecao.get(selKey) ?? 1
+      const exames = _expandirSelecaoOrcParaExames(selKey)
+      for (const nome of exames) {
+        const k = String(nome || '').trim()
+        if (!k) continue
+        acc.set(k, (acc.get(k) || 0) + qtdeSel)
+      }
+    }
+    acc.forEach((qtde, nome_parametro) => detalhes.push({ nome_parametro, qtde }))
+    detalhes.sort((a, b) => String(a.nome_parametro).localeCompare(String(b.nome_parametro), 'pt-BR', { sensitivity: 'base' }))
+    return detalhes
+  }
   container.getExames = () => _expandirSelecoesOrc(getSelecoes())
   container.temExames = () => getSelecoes().length > 0
   container.limpar = () => limparSelecoes()
@@ -3608,9 +3751,10 @@ function adicionarCardExames() {
     let valorAtual
     if (modoAtual === 'orcamento') {
       const total = totalOrcamento()
-      const count = (typeof campoExamesOrc.getSelecoes === 'function'
-        ? campoExamesOrc.getSelecoes()
-        : campoExamesOrc.getExames()).length
+      const detalhes = (campoExamesOrc && typeof campoExamesOrc.getExamesDetalhados === 'function')
+        ? campoExamesOrc.getExamesDetalhados()
+        : (campoExamesOrc.getExames() || []).map(nome_parametro => ({ nome_parametro, qtde: 1 }))
+      const count = detalhes.reduce((acc, e) => acc + (Number(e?.qtde) || 1), 0)
       const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
       valorAtual = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
     } else {
@@ -4267,6 +4411,8 @@ function adicionarCardExames() {
     ? campoExamesOrc.querySelectorAll('.exames-lista').forEach(el => listaOrcObserver.observe(el, { childList: true }))
     : listaOrcObserver.observe(campoExamesOrc.querySelector('.exames-lista'), { childList: true })
   card._desconectarObservers = () => listaOrcObserver.disconnect()
+  // QoL: quantidade (+/-) não altera childList; escuta evento próprio
+  campoExamesOrc.addEventListener('qol-change', () => { atualizarValorSpan(); renderizarPainelExamesOrcados() })
 
   const btnGerarOrc = document.createElement('button')
   btnGerarOrc.className = 'btn-gerar-orc'; btnGerarOrc.textContent = 'Gerar orcamento'
@@ -4329,6 +4475,9 @@ function adicionarCardExames() {
     examesOrcPorGrupo: (typeof campoExamesOrc.getSelecoesPorGrupo === 'function'
       ? campoExamesOrc.getSelecoesPorGrupo()
       : { lab: [], clinica: [] }),
+    examesOrcQtde: (typeof campoExamesOrc.getQtdePorSelecao === 'function'
+      ? campoExamesOrc.getQtdePorSelecao()
+      : {}),
     createdAt: new Date().toISOString()
   })
 
@@ -4371,6 +4520,9 @@ function adicionarCardExames() {
     } else {
       campoExamesOrc.restaurarExames(examesSnap)
     }
+    if (snap.examesOrcQtde && typeof campoExamesOrc.restaurarQtdePorSelecao === 'function') {
+      campoExamesOrc.restaurarQtdePorSelecao(snap.examesOrcQtde)
+    }
     card._setModo('orcamento')
     card.classList.add('orcando')
     atualizarValorSpan()
@@ -4392,7 +4544,9 @@ function adicionarCardExames() {
     const selecoesPorGrupo = typeof campoExamesOrc.getSelecoesPorGrupo === 'function'
       ? campoExamesOrc.getSelecoesPorGrupo()
       : null
-    const examesExpandidos = campoExamesOrc.getExames()
+    const examesExpandidos = (campoExamesOrc && typeof campoExamesOrc.getExamesDetalhados === 'function')
+      ? campoExamesOrc.getExamesDetalhados()
+      : campoExamesOrc.getExames()
     const alertasMascaras = _avaliarMascarasSelecionadasNoUso(selecoesOrc, clinicasAlvo || [])
     const orcamento = calcularOrcamento(examesExpandidos, null, clinicasAlvo)
     const mensagemGerada = renderizarOrcamento(resultadoOrc, orcamento, nomePaciente, null, alertasMascaras, selecoesOrc, selecoesPorGrupo)
@@ -4484,10 +4638,18 @@ function adicionarCardExames() {
   secaoOrcamento.appendChild(fieldExO); secaoOrcamento.appendChild(tokenUiOrc.field); secaoOrcamento.appendChild(resultadoOrc)
 
   // ?? Valor do header + toggle de modo ?????????????????????
-  const totalOrcamento = () => campoExamesOrc.getExames().reduce((acc, nomeParam) => {
-    const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
-    return acc + (exame?.clinicas[0]?.preco ?? 0)
-  }, 0)
+  const totalOrcamento = () => {
+    const detalhes = (campoExamesOrc && typeof campoExamesOrc.getExamesDetalhados === 'function')
+      ? campoExamesOrc.getExamesDetalhados()
+      : (campoExamesOrc.getExames() || []).map(nome_parametro => ({ nome_parametro, qtde: 1 }))
+    return detalhes.reduce((acc, item) => {
+      const nomeParam = String(item?.nome_parametro || '').trim()
+      if (!nomeParam) return acc
+      const qtde = Math.max(1, Math.min(99, parseInt(item?.qtde) || 1))
+      const exame = banco.exames.find(e => e.nome_parametro === nomeParam)
+      return acc + ((exame?.clinicas[0]?.preco ?? 0) * qtde)
+    }, 0)
+  }
 
   let modoAtual = 'agendar'
 
@@ -4495,15 +4657,16 @@ function adicionarCardExames() {
     atualizarResumo()
     if (modoAtual === 'agendar') {
       const total  = subcards.reduce((acc, sc) => acc + sc.getTotal(), 0)
-      const count  = subcards.reduce((acc, sc) => acc + sc.getExames().length, 0)
+      const count  = subcards.reduce((acc, sc) => acc + sc.getExames().reduce((a, e) => a + (Number(e?.qtde) || 1), 0), 0)
       const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
       valorSpan.textContent = formatarMoeda(total) + sufixo
       valorSpan.classList.toggle('zero', total === 0)
     } else {
       const total = totalOrcamento()
-      const count = (typeof campoExamesOrc.getSelecoes === 'function'
-        ? campoExamesOrc.getSelecoes()
-        : campoExamesOrc.getExames()).length
+      const detalhes = (campoExamesOrc && typeof campoExamesOrc.getExamesDetalhados === 'function')
+        ? campoExamesOrc.getExamesDetalhados()
+        : (campoExamesOrc.getExames() || []).map(nome_parametro => ({ nome_parametro, qtde: 1 }))
+      const count = detalhes.reduce((acc, e) => acc + (Number(e?.qtde) || 1), 0)
       const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
       valorSpan.textContent = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
       valorSpan.classList.toggle('zero', total === 0)
@@ -4573,7 +4736,10 @@ function adicionarCardExames() {
         : campoExamesOrc.getExames()),
       examesOrcPorGrupo: (typeof campoExamesOrc.getSelecoesPorGrupo === 'function'
         ? campoExamesOrc.getSelecoesPorGrupo()
-        : { lab: [], clinica: [] })
+        : { lab: [], clinica: [] }),
+      examesOrcQtde: (typeof campoExamesOrc.getQtdePorSelecao === 'function'
+        ? campoExamesOrc.getQtdePorSelecao()
+        : {})
     }
   }
 
@@ -4651,6 +4817,9 @@ function adicionarCardExames() {
     } else if (snap.examesOrc?.length) {
       campoExamesOrc.restaurarExames(snap.examesOrc)
     }
+    if (snap.examesOrcQtde && typeof campoExamesOrc.restaurarQtdePorSelecao === 'function') {
+      campoExamesOrc.restaurarQtdePorSelecao(snap.examesOrcQtde)
+    }
 
     atualizarValorSpan()
     card._modoEdicao = true
@@ -4671,9 +4840,10 @@ function adicionarCardExames() {
     let valorAtual
     if (modoAtual === 'orcamento') {
       const total = totalOrcamento()
-      const count = (typeof campoExamesOrc.getSelecoes === 'function'
-        ? campoExamesOrc.getSelecoes()
-        : campoExamesOrc.getExames()).length
+      const detalhes = (campoExamesOrc && typeof campoExamesOrc.getExamesDetalhados === 'function')
+        ? campoExamesOrc.getExamesDetalhados()
+        : (campoExamesOrc.getExames() || []).map(nome_parametro => ({ nome_parametro, qtde: 1 }))
+      const count = detalhes.reduce((acc, e) => acc + (Number(e?.qtde) || 1), 0)
       const sufixo = count > 0 ? ` (${count} exame${count > 1 ? 's' : ''})` : ''
       valorAtual = total ? `~${formatarMoeda(total)}${sufixo}` : 'orçamento'
     } else {
