@@ -2181,6 +2181,8 @@ function formatarMensagem(orcamento, nomePaciente, selecoesVisuais = [], selecoe
     : selecoes.filter(v => _grupoSelecaoOrc(v) !== 'lab')
   const examesLabSelecionados = _expandirSelecoesOrc(grupoLabSelecionado)
   const examesLabSet = new Set(examesLabSelecionados.map(v => String(v || '').trim()).filter(Boolean))
+  const examesClinSelecionados = _expandirSelecoesOrc(grupoClinicaSelecionado)
+  const examesClinSet = new Set(examesClinSelecionados.map(v => String(v || '').trim()).filter(Boolean))
 
   let labs = []
   if (examesLabSet.size > 0) {
@@ -2203,7 +2205,7 @@ function formatarMensagem(orcamento, nomePaciente, selecoesVisuais = [], selecoe
       .filter(Boolean)
       .sort((a, b) => Number(a.total || 0) - Number(b.total || 0)
         || String(a.clinica_nome || '').localeCompare(String(b.clinica_nome || ''), 'pt-BR', { sensitivity: 'base' }))
-  } else {
+  } else if (!selecoesPorGrupo) {
     labs = orcList
       .filter(item => item.tipo === 'lab' && item.disponiveis.length)
       .slice()
@@ -2366,11 +2368,56 @@ function renderizarOrcamento(container, orcamento, nomePaciente, onAgendar, aler
     container.appendChild(secAlerta)
   }
 
-  const labs    = orcamento.filter(item => item.tipo === 'lab' && item.disponiveis.length)
-  const clinicas = orcamento
-    .filter(item => item.tipo !== 'lab')
+  const orcList = Array.isArray(orcamento) ? orcamento : []
+
+  // Regra UI (QOL): quando a seleção vem separada por grupo (lab/clinica),
+  // o resultado deve respeitar exatamente esses grupos, sem "vazar" exame entre seções.
+  const selecoes = Array.isArray(selecoesVisuais) ? selecoesVisuais : []
+  const grupoLabSelecionado = Array.isArray(selecoesPorGrupo?.lab)
+    ? selecoesPorGrupo.lab
+    : selecoes.filter(v => _grupoSelecaoOrc(v) === 'lab')
+  const grupoClinicaSelecionado = Array.isArray(selecoesPorGrupo?.clinica)
+    ? selecoesPorGrupo.clinica
+    : selecoes.filter(v => _grupoSelecaoOrc(v) !== 'lab')
+
+  const examesLabSet = new Set(_expandirSelecoesOrc(grupoLabSelecionado).map(v => String(v || '').trim()).filter(Boolean))
+  const examesClinSet = new Set(_expandirSelecoesOrc(grupoClinicaSelecionado).map(v => String(v || '').trim()).filter(Boolean))
+
+  const _filtrarItemPorExames = (item, examesSet) => {
+    const baseDisp = Array.isArray(item?.disponiveis) ? item.disponiveis : []
+    const disp = baseDisp.filter(e => examesSet.has(String(e?.nome_parametro || '').trim()))
+    const nomesDisp = new Set(disp.map(e => String(e?.nome_parametro || '').trim()).filter(Boolean))
+    const indis = Array.from(examesSet)
+      .filter(n => !nomesDisp.has(String(n || '').trim()))
+      .map(n => _exameLabelPorParametro(String(n || '').trim()))
+
+    const total = disp.reduce((acc, e) => acc + (Number(e?.preco || 0) * (Number(e?.qtde || 1))), 0)
+    return { ...item, disponiveis: disp, indisponiveis: indis, total }
+  }
+
+  let labs = []
+  let clinicas = []
+  if (selecoesPorGrupo) {
+    labs = examesLabSet.size > 0
+      ? orcList
+        .filter(item => item.tipo === 'lab')
+        .map(item => _filtrarItemPorExames(item, examesLabSet))
+        .filter(item => item.disponiveis.length)
+      : []
+
+    clinicas = examesClinSet.size > 0
+      ? orcList
+        .filter(item => item.tipo !== 'lab')
+        .map(item => _filtrarItemPorExames(item, examesClinSet))
+      : []
+  } else {
+    labs = orcList.filter(item => item.tipo === 'lab' && item.disponiveis.length)
+    clinicas = orcList.filter(item => item.tipo !== 'lab')
+  }
+
+  clinicas = clinicas
     .slice()
-    .sort((a, b) => b.disponiveis.length - a.disponiveis.length)
+    .sort((a, b) => (b?.disponiveis?.length || 0) - (a?.disponiveis?.length || 0))
 
   // ?? Renderiza secao de laboratorios ??????????????????????????
   if (labs.length) {
